@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Client } from '../types';
 import Modal from './Modal';
 import * as api from '../services/api';
@@ -43,6 +43,30 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onCrea
     const [erpCode, setErpCode] = useState('');
     const [locationMessage, setLocationMessage] = useState('');
     const [isGettingLocation, setIsGettingLocation] = useState(false);
+    const isDirty = Boolean(
+        name.trim() ||
+        farmName.trim() ||
+        address.trim() ||
+        phone.trim() ||
+        sellerCode.trim() ||
+        crops.trim() ||
+        erpCode.trim() ||
+        lat !== '' ||
+        lon !== '' ||
+        priority !== 'Medium'
+    );
+
+    useEffect(() => {
+        if (!isOpen || !isDirty) return;
+
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = '';
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isOpen, isDirty]);
 
     const resetForm = () => {
         setName('');
@@ -59,7 +83,10 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onCrea
         setIsGettingLocation(false);
     };
 
-    const handleClose = () => {
+    const handleClose = (force = false) => {
+        if (!force && isDirty && !window.confirm('Hay datos cargados sin guardar. ¿Quieres salir sin guardar?')) {
+            return;
+        }
         resetForm();
         onClose();
     };
@@ -91,7 +118,7 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onCrea
         const newClient: Omit<Client, 'id'> = {
             name,
             farmName,
-            address,
+            address: address.trim() || 'Sin dirección registrada',
             coords: { lat: Number(lat), lon: Number(lon) },
             contactPerson: name,
             phone,
@@ -104,11 +131,11 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onCrea
         };
         const createdClient = await api.createClient(newClient, isOnline);
         onCreateClient(createdClient);
-        handleClose();
+        handleClose(true);
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title="Registrar Nuevo Cliente">
+        <Modal isOpen={isOpen} onClose={() => handleClose()} title="Registrar Nuevo Cliente">
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
@@ -123,8 +150,8 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onCrea
                     <input type="text" value={farmName} onChange={(e) => setFarmName(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
                 </div>
                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Dirección</label>
-                    <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
+                    <label className="block text-sm font-medium text-gray-700">Dirección / Referencia (Opcional)</label>
+                    <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm" placeholder="Ej: camino a Warnes, lote 12"/>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
@@ -172,7 +199,7 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onCrea
                 </div>
 
                 <div className="flex justify-end space-x-2 pt-2">
-                    <button type="button" onClick={handleClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancelar</button>
+                    <button type="button" onClick={() => handleClose()} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancelar</button>
                     <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700">Guardar Cliente</button>
                 </div>
             </form>
@@ -248,7 +275,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onCreateClient, isOnli
                     <div>
                     <p className="font-bold text-lg text-gray-800">{client.farmName}</p>
                     <p className="text-sm text-gray-600">{client.name}</p>
-                    <p className="text-xs text-gray-400">{client.address}</p>
+                    <p className="text-xs text-gray-400">{client.address || 'Sin dirección registrada'}</p>
                     </div>
                     {needsVisit(client.lastVisit) && <div title="Necesita visita (más de 30 días)"><WarningIcon/></div>}
                 </div>
