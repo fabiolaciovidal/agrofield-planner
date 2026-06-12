@@ -15,6 +15,9 @@ import AdminCommercial from './components/AdminCommercial';
 import AdminUsers from './components/AdminUsers';
 import AdminHome from './components/AdminHome';
 
+const SESSION_USER_KEY = 'agrofield_session_user';
+const SESSION_CAMPAIGN_KEY = 'agrofield_selected_campaign';
+
 const OnlineStatusIcon: React.FC<{ isOnline: boolean; pendingActions: number }> = ({ isOnline, pendingActions }) => {
     const title = isOnline 
         ? (pendingActions > 0 ? `En línea - Sincronizando ${pendingActions} acciones` : 'En línea')
@@ -65,6 +68,22 @@ const App: React.FC = () => {
     ? undefined
     : (user?.sellerCode || user?.id);
   const isAdminUser = user?.role === 'Gerente' || user?.role === 'Admin';
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem(SESSION_USER_KEY);
+    const savedCampaignId = localStorage.getItem(SESSION_CAMPAIGN_KEY);
+
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser) as User);
+        setIsAuthenticated(true);
+        if (savedCampaignId) setSelectedCampaignId(savedCampaignId);
+      } catch {
+        localStorage.removeItem(SESSION_USER_KEY);
+        localStorage.removeItem(SESSION_CAMPAIGN_KEY);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -118,6 +137,27 @@ const App: React.FC = () => {
       fetchData();
     }
   }, [isAuthenticated, fetchData]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    api.getCampaigns(isOnline).then((fetchedCampaigns) => {
+      setCampaigns(fetchedCampaigns);
+
+      const savedCampaignId = localStorage.getItem(SESSION_CAMPAIGN_KEY);
+      const savedCampaign = savedCampaignId
+        ? fetchedCampaigns.find((campaign) => campaign.id === savedCampaignId)
+        : undefined;
+      const activeCampaign = savedCampaign || fetchedCampaigns.find(c => c.active) || fetchedCampaigns[0];
+
+      if (activeCampaign) {
+        setSelectedCampaignId(activeCampaign.id);
+        localStorage.setItem(SESSION_CAMPAIGN_KEY, activeCampaign.id);
+      }
+    }).catch((error) => {
+      console.error("Failed to fetch campaigns:", error);
+    });
+  }, [isAuthenticated, isOnline]);
   
   useEffect(() => {
       if(isOnline){
@@ -131,12 +171,16 @@ const App: React.FC = () => {
     try {
       const loggedInUser = await api.login(username, password);
       setUser(loggedInUser);
+      localStorage.setItem(SESSION_USER_KEY, JSON.stringify(loggedInUser));
       
       const fetchedCampaigns = await api.getCampaigns(isOnline);
       setCampaigns(fetchedCampaigns);
       
       const activeCampaign = fetchedCampaigns.find(c => c.active) || fetchedCampaigns[0];
-      if (activeCampaign) setSelectedCampaignId(activeCampaign.id);
+      if (activeCampaign) {
+        setSelectedCampaignId(activeCampaign.id);
+        localStorage.setItem(SESSION_CAMPAIGN_KEY, activeCampaign.id);
+      }
       
       setIsAuthenticated(true);
     } catch (error) {
@@ -148,6 +192,8 @@ const App: React.FC = () => {
   };
   
   const handleLogout = () => {
+      localStorage.removeItem(SESSION_USER_KEY);
+      localStorage.removeItem(SESSION_CAMPAIGN_KEY);
       setUser(null);
       setIsAuthenticated(false);
       setVisits([]);
@@ -286,7 +332,10 @@ const App: React.FC = () => {
             <div className="flex items-center space-x-2">
                 <select 
                     value={selectedCampaignId}
-                    onChange={(e) => setSelectedCampaignId(e.target.value)}
+                    onChange={(e) => {
+                        setSelectedCampaignId(e.target.value);
+                        localStorage.setItem(SESSION_CAMPAIGN_KEY, e.target.value);
+                    }}
                     className="text-[10px] bg-green-50 text-green-700 font-bold border-none rounded-md py-1 focus:ring-0 cursor-pointer uppercase"
                 >
                     {campaigns.map(c => (
