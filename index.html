@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgroField Planner</title>
+  <meta name="theme-color" content="#16a34a">
+  <link rel="stylesheet" href="/index.css">
+  <script>
+    window.onerror = function (message, source, lineno, colno, error) {
+      alert("Error: " + message + "\nSource: " + source + "\nLine: " + lineno);
+    };
+    window.addEventListener('unhandledrejection', function (event) {
+      alert("Unhandled Rejection: " + event.reason);
+    });
+  </script>
+</head>
+
+<body class="bg-gray-100">
+  <div id="root">
+    <div
+      style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; color: #16a34a;">
+      Cargando AgroField Planner...
+    </div>
+  </div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>

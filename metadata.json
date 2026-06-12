@@ -1,0 +1,7 @@
+{
+  "name": "AgroField Planner",
+  "description": "A mobile-first application for agricultural engineers to plan their weekly visits, record visit details with validated geolocation, generate follow-up tasks, and receive AI-powered agronomic suggestions. This tool aims to optimize field operations and provide real-time visibility to supervisors.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
