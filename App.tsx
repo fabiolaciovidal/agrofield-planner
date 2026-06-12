@@ -18,6 +18,11 @@ import AdminHome from './components/AdminHome';
 const SESSION_USER_KEY = 'agrofield_session_user';
 const SESSION_CAMPAIGN_KEY = 'agrofield_selected_campaign';
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
+
 const OnlineStatusIcon: React.FC<{ isOnline: boolean; pendingActions: number }> = ({ isOnline, pendingActions }) => {
     const title = isOnline 
         ? (pendingActions > 0 ? `En línea - Sincronizando ${pendingActions} acciones` : 'En línea')
@@ -64,6 +69,7 @@ const App: React.FC = () => {
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
   const [salesPlan, setSalesPlan] = useState<{ target: number, current: number } | undefined>(undefined);
   const [authError, setAuthError] = useState('');
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const dataScopeUserId = user?.role === 'Gerente' || user?.role === 'Admin'
     ? undefined
     : (user?.sellerCode || user?.id);
@@ -86,9 +92,14 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
@@ -99,6 +110,7 @@ const App: React.FC = () => {
     }, 5000);
 
     return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       clearInterval(interval);
@@ -199,6 +211,15 @@ const App: React.FC = () => {
       setVisits([]);
       setClients([]);
   }
+
+  const handleInstallApp = async () => {
+      if (!installPrompt) return;
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+          setInstallPrompt(null);
+      }
+  };
 
   const navigateToVisit = useCallback((visit: Visit) => {
     setSelectedVisit(visit);
@@ -349,6 +370,11 @@ const App: React.FC = () => {
             <button onClick={handleLogout} className="text-xs bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg hover:bg-red-200 transition-colors">
                 SALIR
             </button>
+            {installPrompt && (
+              <button onClick={handleInstallApp} className="text-xs bg-green-100 text-green-700 font-bold px-3 py-1.5 rounded-lg hover:bg-green-200 transition-colors">
+                  INSTALAR
+              </button>
+            )}
           </div>
         </div>
       </header>
