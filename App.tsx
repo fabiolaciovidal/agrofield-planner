@@ -337,7 +337,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-800 flex flex-col">
+    <div className="min-h-screen overflow-x-hidden bg-gray-50 font-sans text-gray-800 flex flex-col">
       <header className="bg-white shadow-md sticky top-0 z-10 border-b border-green-100">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
           <div>
