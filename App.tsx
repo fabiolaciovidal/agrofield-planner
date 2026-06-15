@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Visit, User, Client, Campaign, SalesPlan } from './types';
+import { View, Visit, User, Client, Campaign, SalesPlan, ClientPriority, LeadStatus } from './types';
 import * as api from './services/api';
 import * as sync from './services/sync';
 import Dashboard from './components/Dashboard';
@@ -70,6 +70,8 @@ const App: React.FC = () => {
   const [salesPlan, setSalesPlan] = useState<{ target: number, current: number } | undefined>(undefined);
   const [authError, setAuthError] = useState('');
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [clientLeadStatusFilter, setClientLeadStatusFilter] = useState<LeadStatus | null>(null);
+  const [clientPriorityFilter, setClientPriorityFilter] = useState<ClientPriority | null>(null);
   const dataScopeUserId = user?.role === 'Gerente' || user?.role === 'Admin'
     ? undefined
     : (user?.sellerCode || user?.id);
@@ -221,6 +223,17 @@ const App: React.FC = () => {
       }
   };
 
+  const navigateToFilteredClients = (filter: { leadStatus?: LeadStatus; priority?: ClientPriority }) => {
+      setClientLeadStatusFilter(filter.leadStatus || null);
+      setClientPriorityFilter(filter.priority || null);
+      setCurrentView(View.CLIENTS);
+  };
+
+  const clearClientFilters = () => {
+      setClientLeadStatusFilter(null);
+      setClientPriorityFilter(null);
+  };
+
   const navigateToVisit = useCallback((visit: Visit) => {
     setSelectedVisit(visit);
     setCurrentView(View.VISIT_DETAIL);
@@ -266,6 +279,7 @@ const App: React.FC = () => {
                 clients={clients} 
                 onSelectVisit={navigateToVisit} 
                 onNavigateToImport={() => setCurrentView(View.ADMIN_IMPORT)}
+                onFilterClients={navigateToFilteredClients}
                 salesPlan={salesPlan}
                 isAdmin={isAdminUser}
             />
@@ -287,7 +301,17 @@ const App: React.FC = () => {
       case View.ADMIN_USERS:
         return <AdminUsers />;
       case View.CLIENTS:
-        return <ClientList clients={clients} onCreateClient={handleCreateClient} isOnline={isOnline} onSelectClient={navigateToClient} />;
+        return (
+          <ClientList
+            clients={clients}
+            onCreateClient={handleCreateClient}
+            isOnline={isOnline}
+            onSelectClient={navigateToClient}
+            initialLeadStatusFilter={clientLeadStatusFilter}
+            initialPriorityFilter={clientPriorityFilter}
+            onClearInitialFilters={clearClientFilters}
+          />
+        );
       case View.CLIENT_DETAIL:
           return selectedClient ? (
               <ClientDetail 
@@ -297,7 +321,17 @@ const App: React.FC = () => {
                 onUpdateClient={handleUpdateClient} 
                 onDeleteClient={handleDeleteClient}
               />
-          ) : <ClientList clients={clients} onCreateClient={handleCreateClient} isOnline={isOnline} onSelectClient={navigateToClient} />;
+          ) : (
+            <ClientList
+              clients={clients}
+              onCreateClient={handleCreateClient}
+              isOnline={isOnline}
+              onSelectClient={navigateToClient}
+              initialLeadStatusFilter={clientLeadStatusFilter}
+              initialPriorityFilter={clientPriorityFilter}
+              onClearInitialFilters={clearClientFilters}
+            />
+          );
       case View.VISIT_DETAIL:
         return selectedVisit ? (
             <VisitDetail 
@@ -312,6 +346,7 @@ const App: React.FC = () => {
                 clients={clients} 
                 onSelectVisit={navigateToVisit} 
                 onNavigateToImport={() => setCurrentView(View.ADMIN_IMPORT)}
+                onFilterClients={navigateToFilteredClients}
                 salesPlan={salesPlan}
                 isAdmin={isAdminUser}
             />
@@ -325,6 +360,7 @@ const App: React.FC = () => {
                 clients={clients} 
                 onSelectVisit={navigateToVisit} 
                 onNavigateToImport={() => setCurrentView(View.ADMIN_IMPORT)}
+                onFilterClients={navigateToFilteredClients}
                 salesPlan={salesPlan}
                 isAdmin={isAdminUser}
             />

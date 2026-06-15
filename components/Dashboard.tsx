@@ -1,5 +1,5 @@
 import React from 'react';
-import { Visit, Client } from '../types';
+import { Visit, Client, ClientPriority, LeadStatus } from '../types';
 import { VisitCard } from './VisitCard';
 import * as api from '../services/api';
 
@@ -8,11 +8,12 @@ interface DashboardProps {
   clients: Client[];
   onSelectVisit: (visit: Visit) => void;
   onNavigateToImport: () => void;
+  onFilterClients: (filter: { leadStatus?: LeadStatus; priority?: ClientPriority }) => void;
   salesPlan?: { target: number, current: number };
   isAdmin?: boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, onNavigateToImport, salesPlan, isAdmin = false }) => {
+const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, onNavigateToImport, onFilterClients, salesPlan, isAdmin = false }) => {
   const today = new Date().toISOString().split('T')[0];
   const todaysVisits = visits.filter(v => v.date === today);
 
@@ -22,6 +23,11 @@ const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, o
   const prospects = clients.filter(c => c.leadStatus === 'Prospect').length;
   const activeClients = clients.filter(c => c.leadStatus === 'Active').length;
   const highPriority = clients.filter(c => c.priority === 'High').length;
+  const inactiveClients = clients.filter(c => c.leadStatus === 'Inactive').length;
+  const lostClients = clients.filter(c => c.leadStatus === 'Lost').length;
+  const mediumPriority = clients.filter(c => c.priority === 'Medium').length;
+  const lowPriority = clients.filter(c => c.priority === 'Low').length;
+  const priorityTotal = Math.max(clients.length, 1);
 
   const [isSyncing, setIsSyncing] = React.useState(false);
 
@@ -107,56 +113,89 @@ const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, o
         </section>
 
         {/* Sales Funnel Section */}
-        {isAdmin && <section>
+        <section>
             <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
                 </svg>
-                Embudo de Ventas
+                Cartera Comercial
             </h3>
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
                 <div className="w-full max-w-[240px] space-y-1">
-                    {/* Funnel Stage: Prospects */}
-                    <div className="relative">
+                    <button
+                        onClick={() => onFilterClients({ leadStatus: 'Prospect' })}
+                        className="relative block w-full text-center transition-transform active:scale-[0.98]"
+                        title="Ver prospectos"
+                    >
                         <div className="h-10 bg-blue-500 rounded-t-lg flex items-center justify-center text-white text-xs font-bold" style={{ width: '100%' }}>
                             Prospectos ({prospects})
                         </div>
-                    </div>
-                    {/* Funnel Stage: Active */}
-                    <div className="relative flex justify-center">
+                    </button>
+                    <button
+                        onClick={() => onFilterClients({ leadStatus: 'Active' })}
+                        className="relative flex w-full justify-center transition-transform active:scale-[0.98]"
+                        title="Ver clientes activos"
+                    >
                         <div className="h-10 bg-green-500 flex items-center justify-center text-white text-xs font-bold" style={{ width: '85%' }}>
                             Activos ({activeClients})
                         </div>
-                    </div>
-                    {/* Funnel Stage: Inactive */}
-                    <div className="relative flex justify-center">
+                    </button>
+                    <button
+                        onClick={() => onFilterClients({ leadStatus: 'Inactive' })}
+                        className="relative flex w-full justify-center transition-transform active:scale-[0.98]"
+                        title="Ver clientes inactivos"
+                    >
                         <div className="h-10 bg-yellow-500 flex items-center justify-center text-white text-xs font-bold" style={{ width: '70%' }}>
-                            Inactivos ({clients.filter(c => c.leadStatus === 'Inactive').length})
+                            Inactivos ({inactiveClients})
                         </div>
-                    </div>
-                    {/* Funnel Stage: Lost */}
-                    <div className="relative flex justify-center">
+                    </button>
+                    <button
+                        onClick={() => onFilterClients({ leadStatus: 'Lost' })}
+                        className="relative flex w-full justify-center transition-transform active:scale-[0.98]"
+                        title="Ver clientes perdidos"
+                    >
                         <div className="h-10 bg-red-400 rounded-b-lg flex items-center justify-center text-white text-xs font-bold" style={{ width: '55%' }}>
-                            Perdidos ({clients.filter(c => c.leadStatus === 'Lost').length})
+                            Perdidos ({lostClients})
                         </div>
-                    </div>
+                    </button>
                 </div>
                 
                 <div className="mt-6 w-full pt-4 border-t border-gray-50">
                     <p className="text-xs text-gray-400 mb-3 uppercase font-bold text-center">Prioridad de Cartera</p>
-                    <div className="flex h-3 rounded-full overflow-hidden">
-                        <div className="bg-red-500" style={{ width: `${(highPriority/clients.length)*100}%` }} title="Alta"></div>
-                        <div className="bg-yellow-400" style={{ width: `${(clients.filter(c => c.priority === 'Medium').length/clients.length)*100}%` }} title="Media"></div>
-                        <div className="bg-gray-200" style={{ width: `${(clients.filter(c => c.priority === 'Low').length/clients.length)*100}%` }} title="Baja"></div>
+                    <div className="flex h-4 rounded-full overflow-hidden">
+                        <button
+                            onClick={() => onFilterClients({ priority: 'High' })}
+                            className="bg-red-500"
+                            style={{ width: `${(highPriority / priorityTotal) * 100}%` }}
+                            title="Ver prioridad alta"
+                            aria-label="Ver clientes de prioridad alta"
+                        />
+                        <button
+                            onClick={() => onFilterClients({ priority: 'Medium' })}
+                            className="bg-yellow-400"
+                            style={{ width: `${(mediumPriority / priorityTotal) * 100}%` }}
+                            title="Ver prioridad media"
+                            aria-label="Ver clientes de prioridad media"
+                        />
+                        <button
+                            onClick={() => onFilterClients({ priority: 'Low' })}
+                            className="bg-gray-200"
+                            style={{ width: `${(lowPriority / priorityTotal) * 100}%` }}
+                            title="Ver prioridad baja"
+                            aria-label="Ver clientes de prioridad baja"
+                        />
                     </div>
-                <div className="flex justify-between mt-2 text-[10px] font-bold text-gray-400 uppercase">
-                        <span>Alta</span>
-                        <span>Media</span>
-                        <span>Baja</span>
+                    <div className="flex justify-between mt-2 text-[10px] font-bold text-gray-400 uppercase">
+                        <button onClick={() => onFilterClients({ priority: 'High' })}>Alta</button>
+                        <button onClick={() => onFilterClients({ priority: 'Medium' })}>Media</button>
+                        <button onClick={() => onFilterClients({ priority: 'Low' })}>Baja</button>
                     </div>
                 </div>
+                <p className="mt-4 text-center text-[11px] font-medium text-gray-400">
+                    Toca una etapa o prioridad para ver la cartera filtrada.
+                </p>
             </div>
-        </section>}
+        </section>
 
         {/* Reporting Section */}
         {isAdmin && <section className="md:col-span-2">

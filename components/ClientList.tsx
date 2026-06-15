@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Client } from '../types';
+import { Client, ClientPriority, LeadStatus } from '../types';
 import Modal from './Modal';
 import * as api from '../services/api';
 import { getBestEffortCurrentPosition } from '../utils/geolocation';
@@ -212,11 +212,45 @@ interface ClientListProps {
     onCreateClient: (client: Client) => void;
     isOnline: boolean;
     onSelectClient: (client: Client) => void;
+    initialLeadStatusFilter?: LeadStatus | null;
+    initialPriorityFilter?: ClientPriority | null;
+    onClearInitialFilters?: () => void;
 }
 
-const ClientList: React.FC<ClientListProps> = ({ clients, onCreateClient, isOnline, onSelectClient }) => {
+const leadStatusLabels: Record<LeadStatus, string> = {
+  Prospect: 'Prospectos',
+  Active: 'Activos',
+  Inactive: 'Inactivos',
+  Lost: 'Perdidos',
+};
+
+const priorityLabels: Record<ClientPriority, string> = {
+  High: 'Alta prioridad',
+  Medium: 'Prioridad media',
+  Low: 'Baja prioridad',
+};
+
+const ClientList: React.FC<ClientListProps> = ({
+  clients,
+  onCreateClient,
+  isOnline,
+  onSelectClient,
+  initialLeadStatusFilter = null,
+  initialPriorityFilter = null,
+  onClearInitialFilters,
+}) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [leadStatusFilter, setLeadStatusFilter] = useState<LeadStatus | 'All'>(initialLeadStatusFilter || 'All');
+  const [priorityFilter, setPriorityFilter] = useState<ClientPriority | 'All'>(initialPriorityFilter || 'All');
+
+  useEffect(() => {
+    setLeadStatusFilter(initialLeadStatusFilter || 'All');
+  }, [initialLeadStatusFilter]);
+
+  useEffect(() => {
+    setPriorityFilter(initialPriorityFilter || 'All');
+  }, [initialPriorityFilter]);
 
   const needsVisit = (lastVisitDate?: string): boolean => {
       if (!lastVisitDate) return true;
@@ -225,11 +259,23 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onCreateClient, isOnli
       return new Date(lastVisitDate) < thirtyDaysAgo;
   }
 
-  const filteredClients = clients.filter(client => 
-    client.farmName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (client.erpCode && client.erpCode.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const clearFilters = () => {
+    setLeadStatusFilter('All');
+    setPriorityFilter('All');
+    onClearInitialFilters?.();
+  };
+
+  const hasActiveFilters = leadStatusFilter !== 'All' || priorityFilter !== 'All';
+
+  const filteredClients = clients.filter(client => {
+    const matchesText =
+      client.farmName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (client.erpCode && client.erpCode.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesLeadStatus = leadStatusFilter === 'All' || client.leadStatus === leadStatusFilter;
+    const matchesPriority = priorityFilter === 'All' || client.priority === priorityFilter;
+    return matchesText && matchesLeadStatus && matchesPriority;
+  });
     
   return (
     <div className="space-y-6">
@@ -258,6 +304,57 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onCreateClient, isOnli
             onChange={(e) => setSearchTerm(e.target.value)}
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 sm:text-sm"
         />
+      </div>
+
+      <div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-bold uppercase text-gray-400">Estado</label>
+            <select
+              value={leadStatusFilter}
+              onChange={(e) => {
+                setLeadStatusFilter(e.target.value as LeadStatus | 'All');
+                onClearInitialFilters?.();
+              }}
+              className="w-full rounded-lg border-gray-200 text-sm focus:border-green-500 focus:ring-green-500"
+            >
+              <option value="All">Todos los estados</option>
+              <option value="Prospect">Prospectos</option>
+              <option value="Active">Activos</option>
+              <option value="Inactive">Inactivos</option>
+              <option value="Lost">Perdidos</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold uppercase text-gray-400">Prioridad</label>
+            <select
+              value={priorityFilter}
+              onChange={(e) => {
+                setPriorityFilter(e.target.value as ClientPriority | 'All');
+                onClearInitialFilters?.();
+              }}
+              className="w-full rounded-lg border-gray-200 text-sm focus:border-green-500 focus:ring-green-500"
+            >
+              <option value="All">Todas las prioridades</option>
+              <option value="High">Alta</option>
+              <option value="Medium">Media</option>
+              <option value="Low">Baja</option>
+            </select>
+          </div>
+        </div>
+        {hasActiveFilters && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full bg-green-50 px-3 py-1 font-bold text-green-700">
+              {leadStatusFilter !== 'All' ? leadStatusLabels[leadStatusFilter] : 'Todos los estados'}
+            </span>
+            <span className="rounded-full bg-blue-50 px-3 py-1 font-bold text-blue-700">
+              {priorityFilter !== 'All' ? priorityLabels[priorityFilter] : 'Todas las prioridades'}
+            </span>
+            <button onClick={clearFilters} className="font-bold text-gray-500 underline">
+              Limpiar filtros
+            </button>
+          </div>
+        )}
       </div>
       
       <AddClientModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onCreateClient={onCreateClient} isOnline={isOnline}/>
