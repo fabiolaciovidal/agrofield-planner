@@ -182,6 +182,34 @@ const App: React.FC = () => {
   const handleLogin = async (username: string, password: string) => {
     setIsLoading(true);
     setAuthError('');
+
+    // --- OFFLINE LOGIN: si no hay internet, intentar usar sesión guardada ---
+    if (!navigator.onLine) {
+      const savedUserRaw = localStorage.getItem(SESSION_USER_KEY);
+      if (savedUserRaw) {
+        try {
+          const savedUser = JSON.parse(savedUserRaw) as User;
+          // Verificar que el usuario ingresado coincide con la sesión guardada
+          if (savedUser.username === username) {
+            setUser(savedUser);
+            setIsAuthenticated(true);
+            setIsLoading(false);
+            return;
+          } else {
+            setAuthError('Sin conexión: solo puedes ingresar como el último usuario activo (' + savedUser.username + ').');
+            setIsLoading(false);
+            return;
+          }
+        } catch {
+          // Si la sesión guardada está corrupta, continuar con el flujo normal
+        }
+      }
+      setAuthError('Sin conexión a internet. Inicia sesión al menos una vez con conexión para poder usarla offline.');
+      setIsLoading(false);
+      return;
+    }
+
+    // --- LOGIN NORMAL (con internet) ---
     try {
       const loggedInUser = await api.login(username, password);
       setUser(loggedInUser);
@@ -204,6 +232,7 @@ const App: React.FC = () => {
         setIsLoading(false);
     }
   };
+
   
   const handleLogout = () => {
       localStorage.removeItem(SESSION_USER_KEY);

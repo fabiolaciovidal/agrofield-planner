@@ -6,7 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
-    base: './',
+    base: '/',
     plugins: [
       react(),
       VitePWA({
@@ -14,6 +14,8 @@ export default defineConfig(({ mode }) => {
         includeAssets: ['vite.svg', 'icon-192.svg', 'icon-512.svg', 'icon-192.png', 'icon-512.png'],
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+          navigateFallback: 'index.html',
+          navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/.*\.tile\.openstreetmap\.org\/.*/i,
@@ -44,13 +46,19 @@ export default defineConfig(({ mode }) => {
               src: 'icon-192.png',
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'any maskable'
+              purpose: 'any'
             },
             {
               src: 'icon-512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any maskable'
+              purpose: 'any'
+            },
+            {
+              src: 'icon-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
             }
           ]
         },
