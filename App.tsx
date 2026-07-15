@@ -316,7 +316,7 @@ const App: React.FC = () => {
       case View.ADMIN_HOME:
         return <AdminHome setView={setCurrentView} />;
       case View.PLANNER:
-        return <Planner visits={visits} clients={clients} onSelectVisit={navigateToVisit} onCreateVisit={handleCreateVisit} isOnline={isOnline}/>;
+        return <Planner visits={visits} clients={clients} onSelectVisit={navigateToVisit} onCreateVisit={handleCreateVisit} isOnline={isOnline} campaignId={selectedCampaignId || undefined} vendedorId={user?.sellerCode || user?.id}/>;
       case View.ADMIN_COMMERCIAL:
         return (
           <AdminCommercial

@@ -10,9 +10,11 @@ interface AddVisitModalProps {
   clients: Client[];
   onCreateVisit: (visit: Visit) => void;
   isOnline: boolean;
+  campaignId?: string;
+  vendedorId?: string;
 }
 
-const AddVisitModal: React.FC<AddVisitModalProps> = ({ isOpen, onClose, clients, onCreateVisit, isOnline }) => {
+const AddVisitModal: React.FC<AddVisitModalProps> = ({ isOpen, onClose, clients, onCreateVisit, isOnline, campaignId, vendedorId }) => {
   const [clientId, setClientId] = useState<number | ''>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showResults, setShowResults] = useState(false);
@@ -41,6 +43,8 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ isOpen, onClose, clients,
       photos: [],
       tasks: [],
       commitments: '',
+      campaignId: campaignId || undefined,
+      vendedorId: vendedorId || undefined,
     };
 
     const createdVisit = await api.createVisit(newVisit, isOnline);
@@ -138,9 +142,11 @@ interface PlannerProps {
   onSelectVisit: (visit: Visit) => void;
   onCreateVisit: (visit: Visit) => void;
   isOnline: boolean;
+  campaignId?: string;
+  vendedorId?: string;
 }
 
-const Planner: React.FC<PlannerProps> = ({ visits, clients, onSelectVisit, onCreateVisit, isOnline }) => {
+const Planner: React.FC<PlannerProps> = ({ visits, clients, onSelectVisit, onCreateVisit, isOnline, campaignId, vendedorId }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const getWeekDays = () => {
     const today = new Date();
@@ -167,7 +173,7 @@ const Planner: React.FC<PlannerProps> = ({ visits, clients, onSelectVisit, onCre
         </button>
       </div>
 
-      <AddVisitModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} clients={clients} onCreateVisit={onCreateVisit} isOnline={isOnline} />
+      <AddVisitModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} clients={clients} onCreateVisit={onCreateVisit} isOnline={isOnline} campaignId={campaignId} vendedorId={vendedorId} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
         {weekDays.map(day => {

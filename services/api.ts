@@ -116,9 +116,18 @@ export const createAppUser = async (
         throw new Error('Supabase no está configurado. No se pueden crear usuarios reales.');
     }
 
+    const id = input.sellerCode || `user-${Date.now()}`;
+    const existingUsers = await supabaseClient.fetchAppUsers();
+    if (input.sellerCode && existingUsers.some(u => u.id === id || u.sellerCode === input.sellerCode)) {
+        throw new Error(`Ya existe un usuario con el código de vendedor "${input.sellerCode}". Usa otro código.`);
+    }
+    if (input.email && existingUsers.some(u => u.email?.toLowerCase() === input.email.toLowerCase())) {
+        throw new Error(`Ya existe un usuario con el email "${input.email}".`);
+    }
+
     const appUser: AppUser = {
         ...input,
-        id: input.sellerCode || `user-${Date.now()}`,
+        id,
         createdAt: new Date().toISOString(),
         passwordHash: await hashPassword(password),
     };
@@ -330,7 +339,7 @@ export const getVisits = async (isOnline: boolean, userId?: string, campaignId?:
     const localVisits = await db.getVisits();
     let filtered = localVisits;
     if (userId) filtered = filtered.filter(v => v.vendedorId === userId || !v.vendedorId);
-    if (campaignId) filtered = filtered.filter(v => v.campaignId === campaignId);
+    if (campaignId) filtered = filtered.filter(v => v.campaignId === campaignId || !v.campaignId);
     return filtered;
 };
 

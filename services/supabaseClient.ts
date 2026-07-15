@@ -123,8 +123,8 @@ export const deleteAllClients = async (): Promise<void> => {
 export const fetchVisits = async (vendedorId?: string, campaignId?: string): Promise<Visit[]> => {
     if (!supabase) return [];
     let query = supabase.from('visits').select('*');
-    if (vendedorId) query = query.eq('vendedorId', vendedorId);
-    if (campaignId) query = query.eq('campaignId', campaignId);
+    if (vendedorId) query = query.or(`vendedorId.eq.${vendedorId},vendedorId.is.null`);
+    if (campaignId) query = query.or(`campaignId.eq.${campaignId},campaignId.is.null`);
     const { data, error } = await query;
     if (error) throw error;
     return data as Visit[];
