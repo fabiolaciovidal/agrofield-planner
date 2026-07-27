@@ -77,7 +77,6 @@ export interface AppUser {
   sellerCode: string;
   active: boolean;
   createdAt?: string;
-  passwordHash?: string;
 }
 
 export interface Campaign {

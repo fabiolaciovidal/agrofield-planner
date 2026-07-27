@@ -7,7 +7,7 @@ interface AdminImportProps {
     isOnline: boolean;
 }
 
-const AdminImport: React.FC<AdminImportProps> = ({ onBack }) => {
+const AdminImport: React.FC<AdminImportProps> = ({ onBack, isOnline }) => {
     const [importing, setImporting] = useState<string | null>(null);
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
@@ -29,7 +29,7 @@ const AdminImport: React.FC<AdminImportProps> = ({ onBack }) => {
                 console.log(`Importing ${type}:`, data);
                 
                 // Mapear el llamado real a la base de datos
-                await api.bulkImport(type, data);
+                await api.bulkImport(type, data, isOnline);
                 
                 console.log(`Finalizó bulkImport`);
                 const syncText = type === 'Vendedores'
@@ -142,10 +142,11 @@ const AdminImport: React.FC<AdminImportProps> = ({ onBack }) => {
                         if(window.confirm("¿Estás seguro de eliminar todos los clientes permanentemente?")) {
                             setImporting("Purgando...");
                             try {
-                                await api.purgeAllClients();
+                                await api.purgeAllClients(isOnline);
                                 setMessage({ text: "Todos los clientes han sido eliminados.", type: 'success' });
                             } catch (e) {
-                                setMessage({ text: "Error al purgar clientes.", type: 'error' });
+                                const detail = e instanceof Error ? e.message : "Revisa tu conexión.";
+                                setMessage({ text: `Error al purgar clientes. ${detail}`, type: 'error' });
                             } finally {
                                 setImporting(null);
                             }

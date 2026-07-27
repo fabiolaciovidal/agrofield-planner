@@ -2,11 +2,9 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# AgroField Planner
 
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/drive/1T1flmLwZ0XyxN_uNme3sxmbVuAhhuxNc
+CRM de campo móvil con React, Supabase, PWA y operación offline.
 
 ## Run Locally
 
@@ -15,6 +13,39 @@ View your app in AI Studio: https://ai.studio/apps/drive/1T1flmLwZ0XyxN_uNme3sxm
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Copy `.env.example` to `.env.local` and configure the required `VITE_` variables.
 3. Run the app:
    `npm run dev`
+
+## Verificación
+
+Antes de publicar:
+
+    npm test
+    npm run build
+
+## Supabase
+
+Para una base nueva, ejecutar `supabase_schema.sql`. Para una base existente,
+ejecutar `supabase_migration_existing.sql`. Después ejecutar
+`supabase_production_security.sql` para crear las políticas RLS.
+
+Probar primero en staging y generar un respaldo antes de aplicar migraciones
+sobre producción.
+
+## Variables de Vercel
+
+Frontend:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_ENABLE_SIGNATURE`
+- `VITE_ENABLE_AI_ASSISTANT`
+- `VITE_API_KEY` cuando se habilite el asistente
+
+Solo servidor:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+`SUPABASE_SERVICE_ROLE_KEY` nunca debe usar el prefijo `VITE_`.

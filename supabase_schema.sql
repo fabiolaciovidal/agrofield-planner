@@ -5,6 +5,7 @@
 -- Tabla de Clientes
 CREATE TABLE clients (
     id BIGINT PRIMARY KEY,
+    "erpCode" TEXT,
     name TEXT NOT NULL,
     "farmName" TEXT NOT NULL,
     address TEXT,
@@ -28,8 +29,7 @@ CREATE TABLE app_users (
     role TEXT NOT NULL DEFAULT 'Vendedor',
     "sellerCode" TEXT NOT NULL UNIQUE,
     active BOOLEAN DEFAULT true,
-    "createdAt" TEXT,
-    "passwordHash" TEXT
+    "createdAt" TEXT
 );
 
 -- Tabla de Visitas
@@ -56,7 +56,8 @@ CREATE TABLE tasks (
     description TEXT NOT NULL,
     "dueDate" TEXT,
     completed BOOLEAN DEFAULT FALSE,
-    "clientId" BIGINT REFERENCES clients(id) ON DELETE CASCADE
+    "clientId" BIGINT REFERENCES clients(id) ON DELETE CASCADE,
+    "visitId" BIGINT REFERENCES visits(id) ON DELETE CASCADE
 );
 
 -- Tabla de Interacciones
@@ -87,12 +88,12 @@ CREATE TABLE sales_plans (
     "currentProgress" NUMERIC DEFAULT 0
 );
 
--- Desactiva las políticas de Row Level Security (RLS) para que el app 
--- frontend pueda leer/escribir libremente (solo para esta prueba de prototipo)
-ALTER TABLE clients DISABLE ROW LEVEL SECURITY;
-ALTER TABLE visits DISABLE ROW LEVEL SECURITY;
-ALTER TABLE tasks DISABLE ROW LEVEL SECURITY;
-ALTER TABLE interactions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE campaigns DISABLE ROW LEVEL SECURITY;
-ALTER TABLE sales_plans DISABLE ROW LEVEL SECURITY;
-ALTER TABLE app_users DISABLE ROW LEVEL SECURITY;
+-- La aplicación de producción siempre mantiene RLS activo.
+-- Ejecutar supabase_production_security.sql para crear las políticas.
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE visits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE interactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sales_plans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_users ENABLE ROW LEVEL SECURITY;

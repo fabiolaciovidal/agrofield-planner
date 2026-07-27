@@ -1,13 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 import { MOCK_CLIENTS, MOCK_VISITS } from '../constants';
-import { Client, Visit, User, Interaction, Task, Campaign, SalesPlan, AppUser } from '../types';
+import { Client, Visit, User, Interaction, Task, Campaign, SalesPlan, AppUser, SyncAction } from '../types';
 import * as db from './db';
 import * as sync from './sync';
 import * as supabaseClient from './supabaseClient';
 
 import { exportToCSV } from '../utils/export';
 
-const SIMULATED_DELAY = 300; 
+const DEMO_DATA_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true';
 
 export const getErrorMessage = (error: unknown, fallback: string): string => {
     if (error instanceof Error && error.message) return error.message;
@@ -22,31 +22,93 @@ export const getErrorMessage = (error: unknown, fallback: string): string => {
     return fallback;
 };
 
-const hashPassword = async (password: string): Promise<string> => {
-    const data = new TextEncoder().encode(password);
-    const digest = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+export const reconcileClients = (cloudClients: Client[], actions: SyncAction[]): Client[] => {
+    const merged = new Map(cloudClients.map((client) => [client.id, client]));
+
+    for (const action of actions) {
+        if (action.type === 'CREATE_CLIENT' || action.type === 'UPDATE_CLIENT') {
+            const client = action.payload as Client;
+            merged.set(client.id, client);
+        } else if (action.type === 'DELETE_CLIENT') {
+            merged.delete(action.payload as number);
+        }
+    }
+
+    return [...merged.values()];
+};
+
+export const reconcileVisits = (cloudVisits: Visit[], actions: SyncAction[]): Visit[] => {
+    const merged = new Map(cloudVisits.map((visit) => [visit.id, visit]));
+
+    for (const action of actions) {
+        if (action.type === 'CREATE_VISIT' || action.type === 'UPDATE_VISIT') {
+            const visit = action.payload as Visit;
+            merged.set(visit.id, visit);
+        }
+    }
+
+    return [...merged.values()];
 };
 
 export const forceSyncAll = async (userId?: string): Promise<void> => {
     // 1. Process local queue (Push)
-    await sync.processSyncQueue();
+    const syncResult = await sync.processSyncQueue();
     
     // 2. Fetch remote data (Pull)
     if (navigator.onLine) {
         if (supabaseClient.isSupabaseConfigured()) {
             try {
                 const cloudClients = await supabaseClient.fetchClients(userId);
-                await db.saveClients(cloudClients);
-                
                 const cloudVisits = await supabaseClient.fetchVisits(userId, undefined);
-                await db.saveVisits(cloudVisits);
+                const pendingActions = await db.getSyncQueue();
+                const clients = reconcileClients(cloudClients, pendingActions);
+                const clientIds = new Set(clients.map((client) => client.id));
+                const visits = reconcileVisits(cloudVisits, pendingActions)
+                    .filter((visit) => clientIds.has(visit.clientId));
+
+                await Promise.all([
+                    db.saveClients(clients),
+                    db.saveVisits(visits),
+                ]);
             } catch (e) {
                  console.error("Error pulling data during force sync:", e);
+                 throw e;
             }
         } else {
              console.log("SYNC: Supabase not configured. Using local data only.");
         }
+    }
+
+    if (syncResult.failed > 0) {
+        throw new Error(String(syncResult.failed) + ' acción(es) no pudieron sincronizarse y siguen pendientes.');
+    }
+};
+
+export const restoreSession = async (): Promise<User | null> => {
+    if (!supabaseClient.isSupabaseConfigured()) return null;
+    const authUser = await supabaseClient.getCurrentAuthUser();
+    if (!authUser?.email) return null;
+    const profile = await supabaseClient.fetchCurrentAppUser(authUser.id, authUser.email);
+    if (!profile) {
+        await supabaseClient.signOut();
+        return null;
+    }
+
+    return {
+        id: authUser.id,
+        name: profile.name,
+        role: profile.role,
+        username: authUser.email,
+        sellerCode: profile.sellerCode,
+    };
+};
+
+export const logout = async (): Promise<void> => {
+    if (!supabaseClient.isSupabaseConfigured()) return;
+    try {
+        await supabaseClient.signOut();
+    } catch (error) {
+        console.warn("Supabase logout failed", error);
     }
 };
 
@@ -59,41 +121,26 @@ export const login = async (email: string, password?: string): Promise<User> => 
             const { data, error } = await supabaseClient.signIn(email, password);
             if (error) throw error;
             if (data.user) {
-                const sellerCode = data.user.user_metadata?.seller_code || email.split('@')[0];
+                const profile = await supabaseClient.fetchCurrentAppUser(data.user.id, email);
+                if (!profile) {
+                    await supabaseClient.signOut();
+                    throw new Error('El usuario no está habilitado en AgroField.');
+                }
                 return { 
                     id: data.user.id,
-                    name: data.user.user_metadata?.full_name || email.split('@')[0], 
-                    role: data.user.user_metadata?.role || 'Vendedor',
+                    name: profile.name,
+                    role: profile.role,
                     username: email,
-                    sellerCode
+                    sellerCode: profile.sellerCode,
                 };
             }
         } catch (e) {
             console.error("Supabase login failed", e);
-            try {
-                const passwordHash = await hashPassword(password);
-                const appUser = await supabaseClient.fetchAppUserByCredentials(email, passwordHash);
-                if (appUser) {
-                    return {
-                        id: appUser.id,
-                        name: appUser.name,
-                        role: appUser.role,
-                        username: appUser.email,
-                        sellerCode: appUser.sellerCode
-                    };
-                }
-            } catch (fallbackError) {
-                console.error("App user login failed", fallbackError);
-            }
             throw new Error("No se pudo iniciar sesión. Verifica usuario, contraseña y que el usuario esté activo.");
         }
     }
 
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve({ id: 'mock-123', name: 'Ing. Agrónomo', role: 'Vendedor', username: email, sellerCode: email.split('@')[0] });
-        }, SIMULATED_DELAY);
-    });
+    throw new Error("Supabase no está configurado. Configura el entorno antes de iniciar sesión.");
 };
 
 // --- USERS / SELLERS ---
@@ -116,23 +163,54 @@ export const createAppUser = async (
         throw new Error('Supabase no está configurado. No se pueden crear usuarios reales.');
     }
 
-    const id = input.sellerCode || `user-${Date.now()}`;
-    const existingUsers = await supabaseClient.fetchAppUsers();
-    if (input.sellerCode && existingUsers.some(u => u.id === id || u.sellerCode === input.sellerCode)) {
-        throw new Error(`Ya existe un usuario con el código de vendedor "${input.sellerCode}". Usa otro código.`);
-    }
-    if (input.email && existingUsers.some(u => u.email?.toLowerCase() === input.email.toLowerCase())) {
-        throw new Error(`Ya existe un usuario con el email "${input.email}".`);
+    const accessToken = await supabaseClient.getAccessToken();
+    if (!accessToken) {
+        throw new Error('Tu sesión expiró. Vuelve a iniciar sesión.');
     }
 
-    const appUser: AppUser = {
-        ...input,
-        id,
-        createdAt: new Date().toISOString(),
-        passwordHash: await hashPassword(password),
-    };
+    const response = await fetch('/api/admin-users', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + accessToken,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            name: input.name,
+            email: input.email,
+            password,
+            role: input.role,
+            sellerCode: input.sellerCode,
+            active: input.active,
+        }),
+    });
 
-    return await supabaseClient.upsertAppUser(appUser);
+    const result = await response.json() as AppUser & { error?: string };
+    if (!response.ok) {
+        throw new Error(result.error || 'No se pudo crear el usuario.');
+    }
+    return result;
+};
+
+export const setAppUserActive = async (id: string, active: boolean): Promise<AppUser> => {
+    const accessToken = await supabaseClient.getAccessToken();
+    if (!accessToken) {
+        throw new Error('Tu sesión expiró. Vuelve a iniciar sesión.');
+    }
+
+    const response = await fetch('/api/admin-users', {
+        method: 'PATCH',
+        headers: {
+            'Authorization': 'Bearer ' + accessToken,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, active }),
+    });
+
+    const result = await response.json() as AppUser & { error?: string };
+    if (!response.ok) {
+        throw new Error(result.error || 'No se pudo actualizar el usuario.');
+    }
+    return result;
 };
 
 // --- DATA INITIALIZATION ---
@@ -140,10 +218,12 @@ const initializeDataIfNeeded = async () => {
     const INITIALIZED_KEY = 'agro_crm_v1_initialized';
     const isInitialized = localStorage.getItem(INITIALIZED_KEY);
 
-    if (!isInitialized) {
+    if (!isInitialized && DEMO_DATA_ENABLED) {
         console.log("CRM: First run detected. Loading mocks.");
         await db.saveClients(MOCK_CLIENTS);
         await db.saveVisits(MOCK_VISITS);
+        localStorage.setItem(INITIALIZED_KEY, 'true');
+    } else if (!isInitialized) {
         localStorage.setItem(INITIALIZED_KEY, 'true');
     }
 };
@@ -154,8 +234,12 @@ export const getClients = async (isOnline: boolean, userId?: string): Promise<Cl
     if (isOnline && supabaseClient.isSupabaseConfigured()) {
         try {
             const cloudClients = await supabaseClient.fetchClients(userId);
-            await db.saveClients(cloudClients);
-            return cloudClients;
+            const pendingActions = await db.getSyncQueue();
+            const clients = reconcileClients(cloudClients, pendingActions);
+            await db.saveClients(clients);
+            return userId
+                ? clients.filter((client) => client.vendedorId === userId || !client.vendedorId)
+                : clients;
         } catch (e) {
             console.warn("Supabase fetch failed, using local cache", e);
         }
@@ -164,40 +248,81 @@ export const getClients = async (isOnline: boolean, userId?: string): Promise<Cl
     return userId ? localClients.filter(c => c.vendedorId === userId || !c.vendedorId) : localClients;
 };
 
-export const bulkImport = async (type: string, data: any[]): Promise<void> => {
+const getImportCoordinate = (
+    row: Record<string, unknown>,
+    keys: string[],
+    label: string,
+    rowNumber: number,
+    min: number,
+    max: number,
+): number => {
+    const raw = keys
+        .map((key) => row[key])
+        .find((value) => value !== undefined && value !== null && String(value).trim() !== '');
+
+    if (raw === undefined) {
+        throw new Error(`Fila ${rowNumber}: falta ${label}. Usa la plantilla de clientes.`);
+    }
+
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < min || value > max) {
+        throw new Error(`Fila ${rowNumber}: ${label} inválida (${String(raw)}).`);
+    }
+    return value;
+};
+
+export const parseImportedClients = (
+    data: Record<string, unknown>[],
+    baseId = Date.now(),
+): Client[] => {
+    if (data.length === 0) {
+        throw new Error('El archivo de clientes no contiene registros.');
+    }
+
+    return data.map((row, i) => ({
+        id: baseId + i,
+        name: String(row.nombre_dueno || row.nombre_dueño || row.cliente || row.nombre || 'Desconocido').trim(),
+        farmName: String(row.nombre_finca || row.finca || 'Finca Sin Nombre').trim(),
+        address: String(row.direccion || row.address || 'No especificada').trim(),
+        coords: {
+            lat: getImportCoordinate(row, ['latitud', 'lat'], 'latitud', i + 2, -90, 90),
+            lon: getImportCoordinate(row, ['longitud', 'lon', 'lng'], 'longitud', i + 2, -180, 180),
+        },
+        contactPerson: String(row.contacto || row.nombre_dueno || row.nombre_dueño || row.cliente || 'Desconocido').trim(),
+        phone: String(row.telefono || row.phone || '').trim(),
+        accountStatus: (row.estado_cuenta || row.accountStatus || 'OK') as Client['accountStatus'],
+        vendedorId: String(row.vendedor_codigo || row.vendedorId || '').trim() || undefined,
+        leadStatus: (row.estado_lead || row.leadStatus || 'Prospect') as Client['leadStatus'],
+        priority: (row.prioridad || row.priority || 'Medium') as Client['priority'],
+        crops: String(row.cultivos || row.crops || '').split('|').map((crop) => crop.trim()).filter(Boolean),
+        erpCode: String(row.codigo_erp || row.erpCode || '').trim(),
+    }));
+};
+
+export const bulkImport = async (
+    type: string,
+    data: Record<string, unknown>[],
+    isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true,
+): Promise<void> => {
     if (type === 'Clientes') {
-        const clients: Client[] = data.map((row: any, i) => ({
-            id: Date.now() + i,
-            name: row.nombre_dueno || row.nombre_dueño || row.cliente || row.nombre || 'Desconocido',
-            farmName: row.nombre_finca || row.finca || 'Finca Sin Nombre',
-            address: row.direccion || row.address || 'No especificada',
-            coords: {
-                lat: Number(row.latitud || row.lat || -16.5 + (Math.random() * 0.1)),
-                lon: Number(row.longitud || row.lon || row.lng || -68.15 + (Math.random() * 0.1)),
-            },
-            contactPerson: row.contacto || row.nombre_dueno || row.nombre_dueño || row.cliente || 'Desconocido',
-            phone: String(row.telefono || row.phone || ''),
-            accountStatus: (row.estado_cuenta || row.accountStatus || 'OK') as Client['accountStatus'],
-            vendedorId: row.vendedor_codigo || row.vendedorId || null,
-            leadStatus: (row.estado_lead || row.leadStatus || 'Prospect') as Client['leadStatus'],
-            priority: (row.prioridad || row.priority || 'Medium') as Client['priority'],
-            crops: String(row.cultivos || row.crops || '').split('|').map((crop) => crop.trim()).filter(Boolean),
-            erpCode: row.codigo_erp || row.erpCode || ''
-        }));
-        
+        const clients = parseImportedClients(data);
         const existing = await db.getClients();
-        await db.saveClients([...existing, ...clients]);
-        
-        if (supabaseClient.isSupabaseConfigured()) {
-            for (const c of clients) {
-                try {
-                   await supabaseClient.insertClient(c);
-                } catch(e) { 
-                    console.error("Supabase insert client error:", e); 
-                    throw e; // Lanza el error para que AdminImport lo muestre
-                }
+
+        if (supabaseClient.isSupabaseConfigured() && isOnline) {
+            await supabaseClient.upsertClients(clients);
+        } else if (supabaseClient.isSupabaseConfigured()) {
+            for (const client of clients) {
+                await sync.queueAction({
+                    id: `client-create-${client.id}`,
+                    type: 'CREATE_CLIENT',
+                    payload: client,
+                    timestamp: Date.now(),
+                });
             }
         }
+
+        await db.saveClients([...existing, ...clients]);
+        return;
     }
     if (type === 'Campañas') {
         const campaigns: Campaign[] = data.map((row: any, i) => ({
@@ -233,16 +358,18 @@ export const bulkImport = async (type: string, data: any[]): Promise<void> => {
     }
     if (type === 'Vendedores') {
         for (const row of data) {
-            const email = row.email || row.correo;
-            const password = row.password || row.contrasena || row.contraseña;
+            const email = String(row.email || row.correo || '').trim();
+            const password = String(row.password || row.contrasena || row.contraseña || '');
             if (!email || !password) {
                 throw new Error('Cada vendedor necesita email y password/contrasena.');
             }
+            const sellerCode = String(row.codigo || row.sellerCode || row.vendedor_codigo || '').trim()
+                || email.split('@')[0];
             await createAppUser({
-                name: row.nombre || row.name || email,
+                name: String(row.nombre || row.name || email).trim(),
                 email,
                 role: (row.rol || row.role || 'Vendedor') as AppUser['role'],
-                sellerCode: row.codigo || row.sellerCode || row.vendedor_codigo || email.split('@')[0],
+                sellerCode,
                 active: String(row.activo || row.active || 'true').toLowerCase() !== 'false'
             }, password);
         }
@@ -251,19 +378,18 @@ export const bulkImport = async (type: string, data: any[]): Promise<void> => {
     // Se podrían agregar Campañas, Vendedores, Plan de Ventas aquí siguiendo la misma lógica.
 };
 
-export const purgeAllClients = async (): Promise<void> => {
-    // Borrar local (guarda array vacío)
-    await db.saveClients([]);
-    
-    // Borrar nube si está configurado
+export const purgeAllClients = async (
+    isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true,
+): Promise<void> => {
     if (supabaseClient.isSupabaseConfigured()) {
-        try {
-            await supabaseClient.deleteAllClients();
-        } catch (e) {
-            console.error("Error purging remote clients:", e);
+        if (!isOnline) {
+            throw new Error('Necesitas conexión para borrar todos los clientes de forma segura.');
         }
+        await supabaseClient.deleteAllClients();
     }
-}
+
+    await db.saveClients([]);
+};
 
 export const createClient = async (newClientData: Omit<Client, 'id'>, isOnline: boolean): Promise<Client> => {
     const newClient: Client = { ...newClientData, id: Date.now() };
@@ -330,8 +456,17 @@ export const getVisits = async (isOnline: boolean, userId?: string, campaignId?:
     if (isOnline && supabaseClient.isSupabaseConfigured()) {
         try {
             const cloudVisits = await supabaseClient.fetchVisits(userId, campaignId);
-            await db.saveVisits(cloudVisits);
-            return cloudVisits;
+            const localVisits = await db.getVisits();
+            const remoteById = new Map(localVisits.map((visit) => [visit.id, visit]));
+            cloudVisits.forEach((visit) => remoteById.set(visit.id, visit));
+            const pendingActions = await db.getSyncQueue();
+            const visits = reconcileVisits([...remoteById.values()], pendingActions);
+            await db.saveVisits(visits);
+
+            return visits.filter((visit) =>
+                (!userId || visit.vendedorId === userId || !visit.vendedorId)
+                && (!campaignId || visit.campaignId === campaignId || !visit.campaignId)
+            );
         } catch (e) {
             console.warn("Supabase fetch failed, using local cache", e);
         }
@@ -388,6 +523,7 @@ export const getInteractions = async (isOnline: boolean, clientId?: number): Pro
     if (isOnline && supabaseClient.isSupabaseConfigured()) {
         try {
             const cloudInteractions = await supabaseClient.fetchInteractions();
+            await db.saveInteractions(cloudInteractions);
             // Optional: Update local DB with only relevant interactions or all
             // For now, return all cloud interactions
             return clientId ? cloudInteractions.filter(i => i.clientId === clientId) : cloudInteractions;
@@ -424,6 +560,7 @@ export const getTasks = async (isOnline: boolean, clientId?: number): Promise<Ta
     if (isOnline && supabaseClient.isSupabaseConfigured()) {
         try {
             const cloudTasks = await supabaseClient.fetchTasks();
+            await db.saveTasks(cloudTasks);
             return clientId ? cloudTasks.filter(t => t.clientId === clientId) : cloudTasks;
         } catch (e) {
             console.warn("Supabase fetch failed", e);
@@ -481,6 +618,7 @@ export const getCampaigns = async (isOnline: boolean): Promise<Campaign[]> => {
             console.warn("Supabase fetch campaigns failed", e);
         }
     }
+    if (!DEMO_DATA_ENABLED) return [];
     // Default fallback campaigns
     return [
         { id: 'c-2024-v', name: 'Campaña Verano 2024', season: 'Verano', year: 2024, active: true },
@@ -496,6 +634,7 @@ export const getSalesPlans = async (isOnline: boolean, userId?: string, campaign
             console.warn("Supabase fetch sales plans failed", e);
         }
     }
+    if (!DEMO_DATA_ENABLED) return [];
     // Mock sales plan for demo
     return [{
         id: 'plan-1',

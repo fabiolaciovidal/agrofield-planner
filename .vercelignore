@@ -1,0 +1,9 @@
+.agents/
+.claude/
+dev-dist/
+Plan_de_Pruebas_AgroField.csv
+Plan_Pruebas_AgroField_Alex.xlsx
+diagnose_app_user_insert.ps1
+diagnose_supabase_signup.ps1
+build_and_run.bat
+start.bat
