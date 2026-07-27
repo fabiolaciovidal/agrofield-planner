@@ -17,6 +17,8 @@ const AdminUsers: React.FC = () => {
   const [form, setForm] = useState(initialForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const loadUsers = async () => {
@@ -27,6 +29,23 @@ const AdminUsers: React.FC = () => {
       setMessage({ type: 'error', text: api.getErrorMessage(error, 'No se pudieron cargar los usuarios.') });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleToggleActive = async (user: AppUser) => {
+    setUpdatingUserId(user.id);
+    setMessage(null);
+    try {
+      const updated = await api.setAppUserActive(user.id, !user.active);
+      setUsers((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setMessage({
+        type: 'success',
+        text: updated.active ? 'Usuario activado.' : 'Usuario desactivado.',
+      });
+    } catch (error) {
+      setMessage({ type: 'error', text: api.getErrorMessage(error, 'No se pudo actualizar el usuario.') });
+    } finally {
+      setUpdatingUserId(null);
     }
   };
 
@@ -54,7 +73,7 @@ const AdminUsers: React.FC = () => {
       setForm(initialForm);
       setMessage({
         type: 'success',
-        text: 'Usuario creado. Si Supabase exige confirmación de email, el usuario deberá confirmar antes de ingresar.',
+        text: 'Usuario creado en Supabase Auth y habilitado para iniciar sesión.',
       });
     } catch (error) {
       setMessage({ type: 'error', text: api.getErrorMessage(error, 'No se pudo crear el usuario.') });
@@ -107,14 +126,22 @@ const AdminUsers: React.FC = () => {
           <div>
             <label className="mb-1 block text-xs font-bold uppercase text-gray-500">Contraseña Inicial</label>
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required
-              minLength={6}
+              minLength={8}
               className="w-full rounded-lg border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
-              placeholder="Mínimo 6 caracteres"
+              placeholder="Mínimo 8 caracteres"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((visible) => !visible)}
+              className="mt-2 text-xs font-semibold text-green-700 hover:text-green-800"
+              aria-pressed={showPassword}
+            >
+              {showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            </button>
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold uppercase text-gray-500">Código Vendedor</label>
@@ -183,6 +210,18 @@ const AdminUsers: React.FC = () => {
                   <span className={`rounded-full px-2 py-1 ${user.active ? 'bg-gray-100 text-gray-600' : 'bg-red-50 text-red-700'}`}>
                     {user.active ? 'Activo' : 'Inactivo'}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleActive(user)}
+                    disabled={updatingUserId === user.id}
+                    className={`rounded-full px-3 py-1 transition-colors disabled:opacity-50 ${
+                      user.active
+                        ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                        : 'bg-green-50 text-green-700 hover:bg-green-100'
+                    }`}
+                  >
+                    {updatingUserId === user.id ? 'Guardando...' : user.active ? 'Desactivar' : 'Activar'}
+                  </button>
                 </div>
               </div>
             ))}

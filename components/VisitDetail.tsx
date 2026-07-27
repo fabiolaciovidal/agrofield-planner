@@ -22,6 +22,7 @@ const LocationIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>
 );
 
+const DEMO_LOCATION_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true';
 
 const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, onUpdateVisit, isOnline }) => {
   const [visit, setVisit] = useState<Visit>(initialVisit);
@@ -77,7 +78,7 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
           setMessage(successMsg);
         } else {
           setMessage(`Check-in fallido. Estás a ${Math.round(distance)}m del cliente. (Debes estar a menos de 200m)`);
-          setShowDemoFix(true);
+          setShowDemoFix(DEMO_LOCATION_ENABLED);
         }
         setLoading(false);
       })
@@ -191,7 +192,7 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
         
         {message && <div className={`p-3 my-4 rounded-md text-sm ${message.includes('exitoso') || message.includes('completada') || message.includes('actualizada') ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{message}</div>}
 
-        {showDemoFix && (
+        {DEMO_LOCATION_ENABLED && showDemoFix && (
             <div className="p-4 mb-4 bg-blue-50 border border-blue-200 rounded-md">
                 <p className="text-sm text-blue-800 mb-2 font-semibold">Modo Demo Activado:</p>
                 <p className="text-xs text-blue-600 mb-3">Parece que estás probando la app lejos del cliente. ¿Quieres actualizar la ubicación de "{client.farmName}" a tu posición actual para probar el Check-In?</p>

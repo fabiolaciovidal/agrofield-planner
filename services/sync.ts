@@ -3,22 +3,31 @@ import { SyncAction, Visit, Client, Interaction, Task } from '../types';
 import * as db from './db';
 import * as supabaseClient from './supabaseClient';
 
+export interface SyncResult {
+    processed: number;
+    failed: number;
+    remaining: number;
+}
+
 export const queueAction = async (action: SyncAction): Promise<void> => {
     await db.addToSyncQueue(action);
     console.log("SYNC: Action queued:", action);
 };
 
-export const processSyncQueue = async (): Promise<void> => {
-    let queue = await db.getSyncQueue();
-    if (queue.length === 0) return;
+export const processSyncQueue = async (): Promise<SyncResult> => {
+    const queue = await db.getSyncQueue();
+    if (queue.length === 0) return { processed: 0, failed: 0, remaining: 0 };
 
     console.log(`SYNC: Processing ${queue.length} actions.`);
     
     if (!supabaseClient.isSupabaseConfigured()) {
         console.warn("SYNC: Supabase not configured. Keeping items in queue for local persistence.");
-        return;
+        return { processed: 0, failed: 0, remaining: queue.length };
     }
-    
+
+    let processed = 0;
+    let failed = 0;
+
     for (const action of queue) {
         try {
             let success = false;
@@ -57,13 +66,16 @@ export const processSyncQueue = async (): Promise<void> => {
             
             if (success) {
                 await db.removeFromSyncQueue(action.id);
+                processed += 1;
                 console.log(`SYNC: Action ${action.id} processed and removed from queue.`);
             }
         } catch (error) {
+            failed += 1;
             console.error(`SYNC: Failed to process action ${action.id}. It will be retried later.`, error);
         }
     }
      console.log("SYNC: Queue processing finished.");
+     return { processed, failed, remaining: (await db.getSyncQueue()).length };
 };
 
 export const getQueueCount = async (): Promise<number> => {

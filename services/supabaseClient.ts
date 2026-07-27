@@ -16,19 +16,24 @@ export const signIn = async (email: string, password?: string) => {
     return await supabase.auth.signInWithPassword({ email, password });
 };
 
-export const signUpUser = async (user: Omit<AppUser, 'id' | 'createdAt'>, password: string) => {
-    if (!supabase) throw new Error("Supabase not configured");
-    return await supabase.auth.signUp({
-        email: user.email,
-        password,
-        options: {
-            data: {
-                full_name: user.name,
-                role: user.role,
-                seller_code: user.sellerCode,
-            }
-        }
-    });
+export const getCurrentAuthUser = async () => {
+    if (!supabase) return null;
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    return data.user;
+};
+
+export const getAccessToken = async (): Promise<string | null> => {
+    if (!supabase) return null;
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return data.session?.access_token || null;
+};
+
+export const signOut = async (): Promise<void> => {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
 };
 
 // --- App Users / Sellers ---
@@ -44,38 +49,39 @@ export const fetchAppUsers = async (): Promise<AppUser[]> => {
         sellerCode: row.sellerCode,
         active: row.active,
         createdAt: row.createdAt,
-        passwordHash: row.passwordHash,
     }));
 };
 
-export const fetchAppUserByCredentials = async (email: string, passwordHash: string): Promise<AppUser | null> => {
+export const fetchCurrentAppUser = async (authId: string, email: string): Promise<AppUser | null> => {
     if (!supabase) return null;
-    const { data, error } = await supabase
-        .from('app_users')
-        .select('*')
-        .eq('email', email)
-        .eq('passwordHash', passwordHash)
-        .eq('active', true)
-        .maybeSingle();
-    if (error) throw error;
-    if (!data) return null;
-    return {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        sellerCode: data.sellerCode,
-        active: data.active,
-        createdAt: data.createdAt,
-        passwordHash: data.passwordHash,
-    };
-};
 
-export const upsertAppUser = async (user: AppUser): Promise<AppUser> => {
-    if (!supabase) throw new Error("Supabase not configured");
-    const { data, error } = await supabase.from('app_users').upsert(user).select().single();
-    if (error) throw error;
-    return data as AppUser;
+    let result = await supabase
+        .from('app_users')
+        .select('id, name, email, role, sellerCode, active, createdAt')
+        .eq('id', authId)
+        .maybeSingle();
+
+    if (result.error) throw result.error;
+    if (!result.data) {
+        result = await supabase
+            .from('app_users')
+            .select('id, name, email, role, sellerCode, active, createdAt')
+            .eq('email', email)
+            .maybeSingle();
+    }
+
+    if (result.error) throw result.error;
+    if (!result.data || !result.data.active) return null;
+
+    return {
+        id: result.data.id,
+        name: result.data.name,
+        email: result.data.email,
+        role: result.data.role,
+        sellerCode: result.data.sellerCode,
+        active: result.data.active,
+        createdAt: result.data.createdAt,
+    };
 };
 
 // --- Clients ---
@@ -90,17 +96,22 @@ export const fetchClients = async (vendedorId?: string): Promise<Client[]> => {
 
 export const insertClient = async (client: Client): Promise<Client> => {
     if (!supabase) throw new Error("Supabase not configured");
-    // Extraemos campos que no están en Supabase para evitar Error 400
-    const { erpCode, ...clientData } = client; 
-    const { data, error } = await supabase.from('clients').insert(clientData).select().single();
+    const { data, error } = await supabase.from('clients').insert(client).select().single();
     if (error) throw error;
     return data as Client;
 };
 
+export const upsertClients = async (clients: Client[]): Promise<Client[]> => {
+    if (!supabase) throw new Error("Supabase not configured");
+    if (clients.length === 0) return [];
+    const { data, error } = await supabase.from('clients').upsert(clients).select();
+    if (error) throw error;
+    return (data || []) as Client[];
+};
+
 export const updateClient = async (client: Client): Promise<Client> => {
      if (!supabase) throw new Error("Supabase not configured");
-     const { erpCode, ...clientData } = client;
-     const { data, error } = await supabase.from('clients').update(clientData).eq('id', client.id).select().single();
+     const { data, error } = await supabase.from('clients').update(client).eq('id', client.id).select().single();
     if (error) throw error;
     return data as Client;
 }
@@ -147,8 +158,7 @@ export const fetchInteractions = async (): Promise<Interaction[]> => {
 
 export const insertInteraction = async (interaction: Interaction): Promise<Interaction> => {
     if (!supabase) throw new Error("Supabase not configured");
-    const { id, ...data } = interaction;
-    const { data: result, error } = await supabase.from('interactions').insert(data).select().single();
+    const { data: result, error } = await supabase.from('interactions').insert(interaction).select().single();
     if (error) throw error;
     return result as Interaction;
 };

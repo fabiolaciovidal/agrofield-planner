@@ -1,10 +1,5 @@
--- Correccion para permitir la demo de administracion de usuarios desde el frontend.
--- Ejecutar en Supabase SQL Editor.
-
-ALTER TABLE app_users ADD COLUMN IF NOT EXISTS "passwordHash" TEXT;
-
--- Para el prototipo/demo: dejar la tabla abierta al frontend con anon key.
-ALTER TABLE app_users DISABLE ROW LEVEL SECURITY;
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE app_users TO anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE app_users TO authenticated;
+-- OBSOLETO: este script abría app_users al rol anon y ya no debe ejecutarse.
+-- La creación de usuarios ahora se realiza mediante /api/admin-users.
+-- Para proteger una base existente, ejecutar:
+--   1. supabase_migration_existing.sql
+--   2. supabase_production_security.sql

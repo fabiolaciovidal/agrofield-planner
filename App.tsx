@@ -14,9 +14,11 @@ import AdminImport from './components/AdminImport';
 import AdminCommercial from './components/AdminCommercial';
 import AdminUsers from './components/AdminUsers';
 import AdminHome from './components/AdminHome';
+import { getAuthorizedView } from './viewAuthorization';
 
 const SESSION_USER_KEY = 'agrofield_session_user';
 const SESSION_CAMPAIGN_KEY = 'agrofield_selected_campaign';
+
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -78,19 +80,54 @@ const App: React.FC = () => {
   const isAdminUser = user?.role === 'Gerente' || user?.role === 'Admin';
 
   useEffect(() => {
-    const savedUser = localStorage.getItem(SESSION_USER_KEY);
-    const savedCampaignId = localStorage.getItem(SESSION_CAMPAIGN_KEY);
+    let cancelled = false;
 
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser) as User);
+    const restoreAuthentication = async () => {
+      const savedUser = localStorage.getItem(SESSION_USER_KEY);
+      const savedCampaignId = localStorage.getItem(SESSION_CAMPAIGN_KEY);
+
+      const restoreSavedUser = () => {
+        if (!savedUser || cancelled) return;
+        const parsedUser = JSON.parse(savedUser) as User;
+        setUser(parsedUser);
         setIsAuthenticated(true);
         if (savedCampaignId) setSelectedCampaignId(savedCampaignId);
-      } catch {
-        localStorage.removeItem(SESSION_USER_KEY);
-        localStorage.removeItem(SESSION_CAMPAIGN_KEY);
+      };
+
+      try {
+        if (!navigator.onLine) {
+          restoreSavedUser();
+          return;
+        }
+
+        const authenticatedUser = await api.restoreSession();
+        if (cancelled) return;
+
+        if (!authenticatedUser) {
+          localStorage.removeItem(SESSION_USER_KEY);
+          localStorage.removeItem(SESSION_CAMPAIGN_KEY);
+          return;
+        }
+
+        setUser(authenticatedUser);
+        setIsAuthenticated(true);
+        localStorage.setItem(SESSION_USER_KEY, JSON.stringify(authenticatedUser));
+        if (savedCampaignId) setSelectedCampaignId(savedCampaignId);
+      } catch (error) {
+        console.warn('No se pudo validar la sesión remota; se usará la sesión offline guardada.', error);
+        try {
+          restoreSavedUser();
+        } catch {
+          localStorage.removeItem(SESSION_USER_KEY);
+          localStorage.removeItem(SESSION_CAMPAIGN_KEY);
+        }
       }
-    }
+    };
+
+    restoreAuthentication();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -191,6 +228,9 @@ const App: React.FC = () => {
           const savedUser = JSON.parse(savedUserRaw) as User;
           // Verificar que el usuario ingresado coincide con la sesión guardada
           if (savedUser.username === username) {
+            setCurrentView(View.DASHBOARD);
+            setSelectedVisit(null);
+            setSelectedClient(null);
             setUser(savedUser);
             setIsAuthenticated(true);
             setIsLoading(false);
@@ -212,6 +252,9 @@ const App: React.FC = () => {
     // --- LOGIN NORMAL (con internet) ---
     try {
       const loggedInUser = await api.login(username, password);
+      setCurrentView(View.DASHBOARD);
+      setSelectedVisit(null);
+      setSelectedClient(null);
       setUser(loggedInUser);
       localStorage.setItem(SESSION_USER_KEY, JSON.stringify(loggedInUser));
       
@@ -234,13 +277,20 @@ const App: React.FC = () => {
   };
 
   
-  const handleLogout = () => {
+  const handleLogout = async () => {
+      await api.logout();
       localStorage.removeItem(SESSION_USER_KEY);
       localStorage.removeItem(SESSION_CAMPAIGN_KEY);
       setUser(null);
       setIsAuthenticated(false);
+      setCurrentView(View.DASHBOARD);
+      setSelectedVisit(null);
+      setSelectedClient(null);
       setVisits([]);
       setClients([]);
+      setCampaigns([]);
+      setAllSalesPlans([]);
+      setSalesPlan(undefined);
   }
 
   const handleInstallApp = async () => {
@@ -299,8 +349,9 @@ const App: React.FC = () => {
 
   const renderView = () => {
     if (isLoading && !clients.length) return <div className="flex justify-center items-center h-64"><Spinner /></div>;
-      
-    switch (currentView) {
+
+    const authorizedView = getAuthorizedView(currentView, isAdminUser);
+    switch (authorizedView) {
       case View.DASHBOARD:
         return (
             <Dashboard 

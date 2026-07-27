@@ -4,8 +4,10 @@ import { db } from './db.dexie';
 
 // --- Client Data ---
 export const saveClients = async (clients: Client[]): Promise<void> => {
-  await db.clients.clear();
-  await db.clients.bulkAdd(clients);
+  await db.transaction('rw', db.clients, async () => {
+    await db.clients.clear();
+    await db.clients.bulkPut(clients);
+  });
 };
 
 export const getClients = async (): Promise<Client[]> => {
@@ -32,8 +34,10 @@ export const deleteClient = async (clientId: number): Promise<void> => {
 
 // --- Visit Data ---
 export const saveVisits = async (visits: Visit[]): Promise<void> => {
-  await db.visits.clear();
-  await db.visits.bulkAdd(visits);
+  await db.transaction('rw', db.visits, async () => {
+    await db.visits.clear();
+    await db.visits.bulkPut(visits);
+  });
 };
 
 export const getVisits = async (): Promise<Visit[]> => {
@@ -60,6 +64,13 @@ export const createInteraction = async (interaction: Interaction): Promise<void>
   await db.interactions.add(interaction);
 };
 
+export const saveInteractions = async (interactions: Interaction[]): Promise<void> => {
+  await db.transaction('rw', db.interactions, async () => {
+    await db.interactions.clear();
+    await db.interactions.bulkPut(interactions);
+  });
+};
+
 // --- Task Data ---
 export const getTasks = async (clientId?: number): Promise<Task[]> => {
   if (clientId) {
@@ -70,6 +81,13 @@ export const getTasks = async (clientId?: number): Promise<Task[]> => {
 
 export const saveTask = async (task: Task): Promise<void> => {
   await db.tasks.put(task);
+};
+
+export const saveTasks = async (tasks: Task[]): Promise<void> => {
+  await db.transaction('rw', db.tasks, async () => {
+    await db.tasks.clear();
+    await db.tasks.bulkPut(tasks);
+  });
 };
 
 export const deleteTask = async (id: number): Promise<void> => {
