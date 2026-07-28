@@ -3,10 +3,17 @@ import { SyncAction, Visit, Client, Interaction, Task } from '../types';
 import * as db from './db';
 import * as supabaseClient from './supabaseClient';
 
+export interface SyncErrorDetail {
+    actionId: string;
+    actionType: SyncAction['type'];
+    message: string;
+}
+
 export interface SyncResult {
     processed: number;
     failed: number;
     remaining: number;
+    errors: SyncErrorDetail[];
 }
 
 export const queueAction = async (action: SyncAction): Promise<void> => {
@@ -16,17 +23,18 @@ export const queueAction = async (action: SyncAction): Promise<void> => {
 
 export const processSyncQueue = async (): Promise<SyncResult> => {
     const queue = await db.getSyncQueue();
-    if (queue.length === 0) return { processed: 0, failed: 0, remaining: 0 };
+    if (queue.length === 0) return { processed: 0, failed: 0, remaining: 0, errors: [] };
 
     console.log(`SYNC: Processing ${queue.length} actions.`);
     
     if (!supabaseClient.isSupabaseConfigured()) {
         console.warn("SYNC: Supabase not configured. Keeping items in queue for local persistence.");
-        return { processed: 0, failed: 0, remaining: queue.length };
+        return { processed: 0, failed: 0, remaining: queue.length, errors: [] };
     }
 
     let processed = 0;
     let failed = 0;
+    const errors: SyncErrorDetail[] = [];
 
     for (const action of queue) {
         try {
@@ -71,11 +79,17 @@ export const processSyncQueue = async (): Promise<SyncResult> => {
             }
         } catch (error) {
             failed += 1;
+            const message = error instanceof Error
+                ? error.message
+                : typeof error === 'object' && error !== null && 'message' in error
+                    ? String((error as { message: unknown }).message)
+                    : String(error);
+            errors.push({ actionId: action.id, actionType: action.type, message });
             console.error(`SYNC: Failed to process action ${action.id}. It will be retried later.`, error);
         }
     }
      console.log("SYNC: Queue processing finished.");
-     return { processed, failed, remaining: (await db.getSyncQueue()).length };
+     return { processed, failed, remaining: (await db.getSyncQueue()).length, errors };
 };
 
 export const getQueueCount = async (): Promise<number> => {

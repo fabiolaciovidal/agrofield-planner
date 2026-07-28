@@ -51,6 +51,10 @@ export const reconcileVisits = (cloudVisits: Visit[], actions: SyncAction[]): Vi
 };
 
 export const forceSyncAll = async (userId?: string): Promise<void> => {
+    if (!navigator.onLine) {
+        throw new Error('Sin conexión a internet. Tus acciones siguen guardadas y se reintentará la sincronización cuando vuelva la conexión.');
+    }
+
     // 1. Process local queue (Push)
     const syncResult = await sync.processSyncQueue();
     
@@ -80,7 +84,14 @@ export const forceSyncAll = async (userId?: string): Promise<void> => {
     }
 
     if (syncResult.failed > 0) {
-        throw new Error(String(syncResult.failed) + ' acción(es) no pudieron sincronizarse y siguen pendientes.');
+        const details = syncResult.errors
+            .slice(0, 3)
+            .map((error) => `${error.actionType}: ${error.message}`)
+            .join(' | ');
+        throw new Error(
+            `${syncResult.failed} acción(es) no pudieron sincronizarse y siguen pendientes.` +
+            (details ? ` Detalle: ${details}` : '')
+        );
     }
 };
 

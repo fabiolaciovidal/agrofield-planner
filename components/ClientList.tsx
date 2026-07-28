@@ -198,9 +198,9 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onCrea
                     </div>
                 </div>
 
-                <div className="flex justify-end space-x-2 pt-2">
-                    <button type="button" onClick={() => handleClose()} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancelar</button>
-                    <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700">Guardar Cliente</button>
+                <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                    <button type="button" onClick={() => handleClose()} className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 sm:w-auto">Cancelar</button>
+                    <button type="submit" className="w-full px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 sm:w-auto">Guardar Cliente</button>
                 </div>
             </form>
         </Modal>
@@ -279,13 +279,13 @@ const ClientList: React.FC<ClientListProps> = ({
     
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h2 className="text-2xl font-semibold text-gray-700">Clientes</h2>
             <p className="text-gray-500">Tu cartera de clientes.</p>
         </div>
-        <div className="flex space-x-2">
-            <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 whitespace-nowrap">
+        <div className="flex w-full sm:w-auto">
+            <button onClick={() => setIsModalOpen(true)} className="w-full px-4 py-2 font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 sm:w-auto">
                 + Añadir Cliente
             </button>
         </div>

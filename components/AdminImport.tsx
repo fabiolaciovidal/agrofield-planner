@@ -132,8 +132,8 @@ const AdminImport: React.FC<AdminImportProps> = ({ onBack, isOnline }) => {
                 </p>
             </div>
 
-            <div className="bg-red-50 p-6 rounded-2xl border border-red-100 mt-6 flex justify-between items-center">
-                <div>
+            <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-red-100 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                <div className="min-w-0">
                     <h4 className="text-sm font-bold text-red-800 tracking-widest mb-1">Peligro: Borrado Masivo</h4>
                     <p className="text-xs text-red-700">Eliminará todos los clientes de tu base de datos local y de la nube.</p>
                 </div>
@@ -153,7 +153,7 @@ const AdminImport: React.FC<AdminImportProps> = ({ onBack, isOnline }) => {
                         }
                     }}
                     disabled={importing !== null}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg text-sm transition-colors"
+                    className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg text-sm transition-colors sm:w-auto"
                 >
                     {importing === 'Purgando...' ? 'Borrando...' : 'Borrar Todos los Clientes'}
                 </button>
