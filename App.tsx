@@ -26,7 +26,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const OnlineStatusIcon: React.FC<{ isOnline: boolean; pendingActions: number }> = ({ isOnline, pendingActions }) => {
-    const title = isOnline 
+    const title = isOnline
         ? (pendingActions > 0 ? `En línea - Sincronizando ${pendingActions} acciones` : 'En línea')
         : `Sin conexión - ${pendingActions} acciones pendientes`;
 
@@ -141,9 +141,9 @@ const App: React.FC = () => {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
+
     sync.getQueueCount().then(setPendingActionsCount);
-    
+
     const interval = setInterval(() => {
         sync.getQueueCount().then(setPendingActionsCount);
     }, 5000);
@@ -170,7 +170,7 @@ const App: React.FC = () => {
         setVisits(fetchedVisits);
         setClients(fetchedClients);
         setAllSalesPlans(fetchedAllPlans);
-        
+
         if (fetchedPlans && fetchedPlans.length > 0) {
             setSalesPlan({ target: fetchedPlans[0].targetValue, current: fetchedPlans[0].currentProgress });
         } else {
@@ -209,7 +209,7 @@ const App: React.FC = () => {
       console.error("Failed to fetch campaigns:", error);
     });
   }, [isAuthenticated, isOnline]);
-  
+
   useEffect(() => {
       if(isOnline){
           sync.processSyncQueue().then(() => fetchData());
@@ -257,16 +257,16 @@ const App: React.FC = () => {
       setSelectedClient(null);
       setUser(loggedInUser);
       localStorage.setItem(SESSION_USER_KEY, JSON.stringify(loggedInUser));
-      
+
       const fetchedCampaigns = await api.getCampaigns(isOnline);
       setCampaigns(fetchedCampaigns);
-      
+
       const activeCampaign = fetchedCampaigns.find(c => c.active) || fetchedCampaigns[0];
       if (activeCampaign) {
         setSelectedCampaignId(activeCampaign.id);
         localStorage.setItem(SESSION_CAMPAIGN_KEY, activeCampaign.id);
       }
-      
+
       setIsAuthenticated(true);
     } catch (error) {
       console.error("Login failed:", error);
@@ -276,7 +276,7 @@ const App: React.FC = () => {
     }
   };
 
-  
+
   const handleLogout = async () => {
       await api.logout();
       localStorage.removeItem(SESSION_USER_KEY);
@@ -322,7 +322,7 @@ const App: React.FC = () => {
     setSelectedClient(client);
     setCurrentView(View.CLIENT_DETAIL);
   }, []);
-  
+
   const handleUpdateVisit = (updatedVisit: Visit) => {
     setVisits(prev => prev.map(v => v.id === updatedVisit.id ? updatedVisit : v));
     setSelectedVisit(updatedVisit);
@@ -338,11 +338,11 @@ const App: React.FC = () => {
       setVisits(prev => prev.filter(v => v.clientId !== clientId));
       setSelectedClient(null);
   }
-  
+
   const handleCreateVisit = (newVisit: Visit) => {
       setVisits(prev => [...prev, newVisit]);
   };
-  
+
   const handleCreateClient = (newClient: Client) => {
       setClients(prev => [...prev, newClient]);
   };
@@ -354,10 +354,10 @@ const App: React.FC = () => {
     switch (authorizedView) {
       case View.DASHBOARD:
         return (
-            <Dashboard 
-                visits={visits} 
-                clients={clients} 
-                onSelectVisit={navigateToVisit} 
+            <Dashboard
+                visits={visits}
+                clients={clients}
+                onSelectVisit={navigateToVisit}
                 onNavigateToImport={() => setCurrentView(View.ADMIN_IMPORT)}
                 onFilterClients={navigateToFilteredClients}
                 salesPlan={salesPlan}
@@ -394,11 +394,11 @@ const App: React.FC = () => {
         );
       case View.CLIENT_DETAIL:
           return selectedClient ? (
-              <ClientDetail 
-                client={selectedClient} 
-                onBack={() => setCurrentView(View.CLIENTS)} 
-                isOnline={isOnline} 
-                onUpdateClient={handleUpdateClient} 
+              <ClientDetail
+                client={selectedClient}
+                onBack={() => setCurrentView(View.CLIENTS)}
+                isOnline={isOnline}
+                onUpdateClient={handleUpdateClient}
                 onDeleteClient={handleDeleteClient}
               />
           ) : (
@@ -414,17 +414,17 @@ const App: React.FC = () => {
           );
       case View.VISIT_DETAIL:
         return selectedVisit ? (
-            <VisitDetail 
-                visit={selectedVisit} 
-                onBack={() => setCurrentView(View.DASHBOARD)} 
+            <VisitDetail
+                visit={selectedVisit}
+                onBack={() => setCurrentView(View.DASHBOARD)}
                 onUpdateVisit={handleUpdateVisit}
                 isOnline={isOnline}
             />
         ) : (
-            <Dashboard 
-                visits={visits} 
-                clients={clients} 
-                onSelectVisit={navigateToVisit} 
+            <Dashboard
+                visits={visits}
+                clients={clients}
+                onSelectVisit={navigateToVisit}
                 onNavigateToImport={() => setCurrentView(View.ADMIN_IMPORT)}
                 onFilterClients={navigateToFilteredClients}
                 salesPlan={salesPlan}
@@ -435,10 +435,10 @@ const App: React.FC = () => {
           return <AdminImport onBack={() => setCurrentView(View.DASHBOARD)} isOnline={isOnline} />;
       default:
         return (
-            <Dashboard 
-                visits={visits} 
-                clients={clients} 
-                onSelectVisit={navigateToVisit} 
+            <Dashboard
+                visits={visits}
+                clients={clients}
+                onSelectVisit={navigateToVisit}
                 onNavigateToImport={() => setCurrentView(View.ADMIN_IMPORT)}
                 onFilterClients={navigateToFilteredClients}
                 salesPlan={salesPlan}
@@ -447,7 +447,7 @@ const App: React.FC = () => {
         );
     }
   };
-  
+
   if (!isAuthenticated) {
       return <Login onLogin={handleLogin} error={authError} />
   }
@@ -455,39 +455,36 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen overflow-x-hidden bg-gray-50 font-sans text-gray-800 flex flex-col">
       <header className="bg-white shadow-md sticky top-0 z-10 border-b border-green-100">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
-          <div>
-            <h1 className="text-xl font-extrabold text-green-700 flex items-center space-x-2">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-3 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-extrabold text-green-700 flex items-center gap-2 leading-tight">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
-                <span>AgroField CRM</span>
+                <span className="break-words">AgroField CRM</span>
             </h1>
-            <p className="text-xs text-gray-500 font-medium">Bienvenido, {user?.name}</p>
+            <p className="text-xs text-gray-500 font-medium truncate">Bienvenido, {user?.name}</p>
           </div>
-          <div className="flex flex-col items-end space-y-2">
-            <div className="flex items-center space-x-2">
-                <select 
-                    value={selectedCampaignId}
-                    onChange={(e) => {
-                        setSelectedCampaignId(e.target.value);
-                        localStorage.setItem(SESSION_CAMPAIGN_KEY, e.target.value);
-                    }}
-                    className="text-[10px] bg-green-50 text-green-700 font-bold border-none rounded-md py-1 focus:ring-0 cursor-pointer uppercase"
-                >
-                    {campaigns.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                </select>
-                <OnlineStatusIcon isOnline={isOnline} pendingActions={pendingActionsCount}/>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2 ml-4">
-            <button onClick={handleLogout} className="text-xs bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg hover:bg-red-200 transition-colors">
+          <div className="flex max-w-[145px] shrink-0 flex-wrap items-center justify-end gap-1.5 sm:max-w-none">
+            <select
+                value={selectedCampaignId}
+                onChange={(e) => {
+                    setSelectedCampaignId(e.target.value);
+                    localStorage.setItem(SESSION_CAMPAIGN_KEY, e.target.value);
+                }}
+                aria-label="Campaña activa"
+                className="max-w-[58px] sm:max-w-[180px] text-[10px] bg-green-50 text-green-700 font-bold border-none rounded-md py-1 focus:ring-0 cursor-pointer uppercase"
+            >
+                {campaigns.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+            </select>
+            <OnlineStatusIcon isOnline={isOnline} pendingActions={pendingActionsCount}/>
+            <button onClick={handleLogout} className="text-xs bg-red-100 text-red-600 font-bold px-2 sm:px-3 py-1.5 rounded-lg hover:bg-red-200 transition-colors">
                 SALIR
             </button>
             {installPrompt && (
-              <button onClick={handleInstallApp} className="text-xs bg-green-100 text-green-700 font-bold px-3 py-1.5 rounded-lg hover:bg-green-200 transition-colors">
+              <button onClick={handleInstallApp} className="text-xs bg-green-100 text-green-700 font-bold px-2 sm:px-3 py-1.5 rounded-lg hover:bg-green-200 transition-colors">
                   INSTALAR
               </button>
             )}

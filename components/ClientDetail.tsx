@@ -96,23 +96,23 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack, isOnline, o
 
     return (
         <div className="space-y-6">
-            <header className="flex items-center space-x-4">
-                <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full">
+            <header className="flex items-start gap-3 sm:items-center sm:gap-4">
+                <button onClick={onBack} aria-label="Volver" className="shrink-0 p-2 hover:bg-gray-100 rounded-full">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
                 </button>
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-800">{client.farmName}</h2>
-                    <p className="text-gray-500">{client.name} • {client.phone}</p>
+                <div className="min-w-0">
+                    <h2 className="break-words text-2xl font-bold text-gray-800">{client.farmName}</h2>
+                    <p className="break-words text-gray-500">{client.name} • {client.phone}</p>
                 </div>
             </header>
 
             {/* Quick Actions Bar */}
-            <div className="flex gap-4">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
                 <a 
                     href={`tel:${client.phone}`} 
-                    className="flex-1 bg-green-50 text-green-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 hover:bg-green-100 transition-colors border border-green-200"
+                    className="min-w-0 bg-green-50 text-green-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 hover:bg-green-100 transition-colors border border-green-200"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C10.119 18 2 9.881 2 2z" />
@@ -123,7 +123,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack, isOnline, o
                     href={`https://www.google.com/maps/search/?api=1&query=${client.coords.lat},${client.coords.lon}`} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex-1 bg-blue-50 text-blue-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 hover:bg-blue-100 transition-colors border border-blue-200"
+                    className="min-w-0 bg-blue-50 text-blue-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 hover:bg-blue-100 transition-colors border border-blue-200"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
@@ -132,7 +132,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack, isOnline, o
                 </a>
                 <button 
                     onClick={() => setIsEditingLocation(!isEditingLocation)}
-                    className="flex-1 bg-purple-50 text-purple-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 hover:bg-purple-100 transition-colors border border-purple-200"
+                    className="min-w-0 bg-purple-50 text-purple-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 hover:bg-purple-100 transition-colors border border-purple-200"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
@@ -174,23 +174,23 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack, isOnline, o
                             />
                         </div>
                     </div>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                         <button 
                             onClick={handleCaptureLocation}
                             disabled={isCapturing}
-                            className="flex-1 py-2 px-4 bg-purple-600 text-white rounded-lg text-sm font-bold hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center justify-center"
+                            className="w-full py-2 px-4 bg-purple-600 text-white rounded-lg text-sm font-bold hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center justify-center sm:w-auto sm:flex-1"
                         >
                             {isCapturing ? "Capturando..." : "Capturar GPS Actual"}
                         </button>
                         <button 
                             onClick={handleSaveLocation}
-                            className="flex-1 py-2 px-4 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition-colors"
+                            className="w-full py-2 px-4 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition-colors sm:w-auto sm:flex-1"
                         >
                             Guardar Ubicación
                         </button>
                         <button 
                             onClick={() => setIsEditingLocation(false)}
-                            className="py-2 px-4 bg-white text-gray-500 border border-gray-200 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors"
+                            className="w-full py-2 px-4 bg-white text-gray-500 border border-gray-200 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors sm:w-auto"
                         >
                             Cancelar
                         </button>

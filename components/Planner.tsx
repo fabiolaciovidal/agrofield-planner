@@ -127,9 +127,9 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ isOpen, onClose, clients,
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
           />
         </div>
-        <div className="flex justify-end space-x-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancelar</button>
-          <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700">Guardar Visita</button>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" onClick={onClose} className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 sm:w-auto">Cancelar</button>
+          <button type="submit" className="w-full px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 sm:w-auto">Guardar Visita</button>
         </div>
       </form>
     </Modal>
@@ -163,12 +163,12 @@ const Planner: React.FC<PlannerProps> = ({ visits, clients, onSelectVisit, onCre
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-gray-700">Agenda</h2>
           <p className="text-gray-500">Organiza tus visitas de la semana.</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 whitespace-nowrap">
+        <button onClick={() => setIsModalOpen(true)} className="w-full px-4 py-2 font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 sm:w-auto">
           + Nueva visita
         </button>
       </div>

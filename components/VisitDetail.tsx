@@ -272,9 +272,9 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
             <ul className="list-disc pl-5 mt-2 text-sm text-gray-600">
                 {visit.tasks.map(task => <li key={task.id}>{task.description}</li>)}
             </ul>
-           <div className="flex space-x-2 mt-2">
+           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
               <input type="text" value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)} className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm" placeholder="Descripción de nueva tarea"/>
-              <button onClick={handleAddTask} className="px-4 py-2 bg-green-600 text-white rounded-md text-sm whitespace-nowrap">Añadir Tarea</button>
+              <button onClick={handleAddTask} className="w-full px-4 py-2 bg-green-600 text-white rounded-md text-sm sm:w-auto">Añadir Tarea</button>
            </div>
         </div>
       </div>

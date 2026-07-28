@@ -39,8 +39,13 @@ const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, o
         alert("Sincronización completada exitosamente.");
         // Opcional: Recargar la página para ver los clientes nuevos
         window.location.reload();
-    } catch (e) {
-        alert("Sincronización finalizada con errores (o estás offline).");
+    } catch (error) {
+        console.error('Sincronización manual fallida:', error);
+        const detail = api.getErrorMessage(
+            error,
+            'No se pudo completar la sincronización. Las acciones pendientes permanecen guardadas.'
+        );
+        alert(detail);
     } finally {
         setIsSyncing(false);
     }

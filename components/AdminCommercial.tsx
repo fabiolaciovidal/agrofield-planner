@@ -71,7 +71,7 @@ const AdminCommercial: React.FC<AdminCommercialProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-wider text-green-600">Campañas Activas</p>
           <p className="mt-3 text-3xl font-black text-gray-900">{activeCampaigns}</p>
