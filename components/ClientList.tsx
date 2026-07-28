@@ -28,14 +28,23 @@ interface AddClientModalProps {
     onClose: () => void;
     onCreateClient: (client: Client) => void;
     isOnline: boolean;
+    assignedSellerCode?: string;
+    lockSellerCode?: boolean;
 }
 
-const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onCreateClient, isOnline }) => {
+const AddClientModal: React.FC<AddClientModalProps> = ({
+    isOpen,
+    onClose,
+    onCreateClient,
+    isOnline,
+    assignedSellerCode,
+    lockSellerCode = false,
+}) => {
     const [name, setName] = useState('');
     const [farmName, setFarmName] = useState('');
     const [address, setAddress] = useState('');
     const [phone, setPhone] = useState('');
-    const [sellerCode, setSellerCode] = useState('');
+    const [sellerCode, setSellerCode] = useState(assignedSellerCode || '');
     const [crops, setCrops] = useState('');
     const [priority, setPriority] = useState<Client['priority']>('Medium');
     const [lat, setLat] = useState<number | string>('');
@@ -68,12 +77,18 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onCrea
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [isOpen, isDirty]);
 
+    useEffect(() => {
+        if (isOpen && assignedSellerCode) {
+            setSellerCode(assignedSellerCode);
+        }
+    }, [assignedSellerCode, isOpen]);
+
     const resetForm = () => {
         setName('');
         setFarmName('');
         setAddress('');
         setPhone('');
-        setSellerCode('');
+        setSellerCode(assignedSellerCode || '');
         setCrops('');
         setPriority('Medium');
         setLat('');
@@ -127,7 +142,7 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onCrea
             priority,
             crops: crops.split(',').map((crop) => crop.trim()).filter(Boolean),
             erpCode: erpCode || '',
-            vendedorId: sellerCode || undefined,
+            vendedorId: sellerCode.trim() || assignedSellerCode || undefined,
         };
         const createdClient = await api.createClient(newClient, isOnline);
         onCreateClient(createdClient);
@@ -160,7 +175,15 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onCrea
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Vendedor</label>
-                        <input type="text" value={sellerCode} onChange={(e) => setSellerCode(e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm" placeholder="Ej: V001"/>
+                        <input
+                            type="text"
+                            value={sellerCode}
+                            onChange={(e) => setSellerCode(e.target.value)}
+                            readOnly={lockSellerCode}
+                            required={lockSellerCode}
+                            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm ${lockSellerCode ? 'bg-gray-100 text-gray-600' : ''}`}
+                            placeholder="Ej: V001"
+                        />
                     </div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -215,6 +238,8 @@ interface ClientListProps {
     initialLeadStatusFilter?: LeadStatus | null;
     initialPriorityFilter?: ClientPriority | null;
     onClearInitialFilters?: () => void;
+    assignedSellerCode?: string;
+    lockSellerCode?: boolean;
 }
 
 const leadStatusLabels: Record<LeadStatus, string> = {
@@ -238,6 +263,8 @@ const ClientList: React.FC<ClientListProps> = ({
   initialLeadStatusFilter = null,
   initialPriorityFilter = null,
   onClearInitialFilters,
+  assignedSellerCode,
+  lockSellerCode = false,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -357,7 +384,14 @@ const ClientList: React.FC<ClientListProps> = ({
         )}
       </div>
       
-      <AddClientModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onCreateClient={onCreateClient} isOnline={isOnline}/>
+      <AddClientModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onCreateClient={onCreateClient}
+        isOnline={isOnline}
+        assignedSellerCode={assignedSellerCode}
+        lockSellerCode={lockSellerCode}
+      />
 
       <div className="space-y-4">
         {filteredClients.length > 0 ? (
