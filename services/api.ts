@@ -56,7 +56,7 @@ export const forceSyncAll = async (userId?: string): Promise<void> => {
     }
 
     // 1. Process local queue (Push)
-    const syncResult = await sync.processSyncQueue();
+    const syncResult = await sync.processSyncQueue(userId);
     
     // 2. Fetch remote data (Pull)
     if (navigator.onLine) {
