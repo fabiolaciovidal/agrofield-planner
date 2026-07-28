@@ -47,7 +47,6 @@ export const processSyncQueue = async (sellerCode?: string): Promise<SyncResult>
                     || action.type === 'CREATE_VISIT'
                     || action.type === 'UPDATE_VISIT'
                 )
-                && !(action.payload as Client | Visit).vendedorId
             )
                 ? { ...(action.payload as Client | Visit), vendedorId: sellerCode }
                 : action.payload;

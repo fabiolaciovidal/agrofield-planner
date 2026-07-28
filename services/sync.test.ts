@@ -70,10 +70,10 @@ describe('processSyncQueue', () => {
         expect(mocks.removeFromSyncQueue).not.toHaveBeenCalled();
     });
 
-    it('recupera clientes antiguos sin vendedor antes de enviarlos', async () => {
+    it('reasigna al vendedor autenticado los clientes antiguos antes de enviarlos', async () => {
         const legacyAction: SyncAction = {
             ...action,
-            payload: { ...client, vendedorId: undefined },
+            payload: { ...client, vendedorId: 'CODIGO-ANTIGUO' },
         };
         mocks.getSyncQueue
             .mockResolvedValueOnce([legacyAction])
