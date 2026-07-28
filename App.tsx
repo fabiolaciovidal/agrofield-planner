@@ -390,6 +390,8 @@ const App: React.FC = () => {
             initialLeadStatusFilter={clientLeadStatusFilter}
             initialPriorityFilter={clientPriorityFilter}
             onClearInitialFilters={clearClientFilters}
+            assignedSellerCode={isAdminUser ? undefined : (user?.sellerCode || user?.id)}
+            lockSellerCode={!isAdminUser}
           />
         );
       case View.CLIENT_DETAIL:
@@ -410,6 +412,8 @@ const App: React.FC = () => {
               initialLeadStatusFilter={clientLeadStatusFilter}
               initialPriorityFilter={clientPriorityFilter}
               onClearInitialFilters={clearClientFilters}
+              assignedSellerCode={isAdminUser ? undefined : (user?.sellerCode || user?.id)}
+              lockSellerCode={!isAdminUser}
             />
           );
       case View.VISIT_DETAIL:
