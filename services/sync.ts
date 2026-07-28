@@ -21,7 +21,7 @@ export const queueAction = async (action: SyncAction): Promise<void> => {
     console.log("SYNC: Action queued:", action);
 };
 
-export const processSyncQueue = async (): Promise<SyncResult> => {
+export const processSyncQueue = async (sellerCode?: string): Promise<SyncResult> => {
     const queue = await db.getSyncQueue();
     if (queue.length === 0) return { processed: 0, failed: 0, remaining: 0, errors: [] };
 
@@ -39,18 +39,31 @@ export const processSyncQueue = async (): Promise<SyncResult> => {
     for (const action of queue) {
         try {
             let success = false;
+            const payload = (
+                sellerCode
+                && (
+                    action.type === 'CREATE_CLIENT'
+                    || action.type === 'UPDATE_CLIENT'
+                    || action.type === 'CREATE_VISIT'
+                    || action.type === 'UPDATE_VISIT'
+                )
+                && !(action.payload as Client | Visit).vendedorId
+            )
+                ? { ...(action.payload as Client | Visit), vendedorId: sellerCode }
+                : action.payload;
+
             switch (action.type) {
                 case 'UPDATE_VISIT':
                 case 'CREATE_VISIT':
-                    await supabaseClient.upsertVisit(action.payload as Visit);
+                    await supabaseClient.upsertVisit(payload as Visit);
                     success = true;
                     break;
                 case 'CREATE_CLIENT':
-                    await supabaseClient.insertClient(action.payload as Client);
+                    await supabaseClient.insertClient(payload as Client);
                     success = true;
                     break;
                 case 'UPDATE_CLIENT':
-                    await supabaseClient.updateClient(action.payload as Client);
+                    await supabaseClient.updateClient(payload as Client);
                     success = true;
                     break;
                 case 'DELETE_CLIENT':

@@ -69,4 +69,24 @@ describe('processSyncQueue', () => {
         }]);
         expect(mocks.removeFromSyncQueue).not.toHaveBeenCalled();
     });
+
+    it('recupera clientes antiguos sin vendedor antes de enviarlos', async () => {
+        const legacyAction: SyncAction = {
+            ...action,
+            payload: { ...client, vendedorId: undefined },
+        };
+        mocks.getSyncQueue
+            .mockResolvedValueOnce([legacyAction])
+            .mockResolvedValueOnce([]);
+        mocks.insertClient.mockResolvedValue({ ...client, vendedorId: 'QA-V01' });
+
+        const result = await processSyncQueue('QA-V01');
+
+        expect(mocks.insertClient).toHaveBeenCalledWith({
+            ...client,
+            vendedorId: 'QA-V01',
+        });
+        expect(mocks.removeFromSyncQueue).toHaveBeenCalledWith(legacyAction.id);
+        expect(result).toMatchObject({ processed: 1, failed: 0, remaining: 0 });
+    });
 });
