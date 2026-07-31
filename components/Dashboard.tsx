@@ -11,9 +11,11 @@ interface DashboardProps {
   onFilterClients: (filter: { leadStatus?: LeadStatus; priority?: ClientPriority }) => void;
   salesPlan?: { target: number, current: number };
   isAdmin?: boolean;
+  sellerCode?: string;
+  onSyncComplete?: () => Promise<void> | void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, onNavigateToImport, onFilterClients, salesPlan, isAdmin = false }) => {
+const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, onNavigateToImport, onFilterClients, salesPlan, isAdmin = false, sellerCode, onSyncComplete }) => {
   const today = new Date().toISOString().split('T')[0];
   const todaysVisits = visits.filter(v => v.date === today);
 
@@ -30,22 +32,18 @@ const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, o
   const priorityTotal = Math.max(clients.length, 1);
 
   const [isSyncing, setIsSyncing] = React.useState(false);
+  const [syncFeedback, setSyncFeedback] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const handleSync = async () => {
     setIsSyncing(true);
+    setSyncFeedback(null);
     try {
-        // Obtenemos el userId desde algún lado, o lo omitimos si trae de todos por ahora
-        await api.forceSyncAll();
-        alert("Sincronización completada exitosamente.");
-        // Opcional: Recargar la página para ver los clientes nuevos
-        window.location.reload();
+        await api.forceSyncAll(sellerCode);
+        await onSyncComplete?.();
+        setSyncFeedback({ type: 'success', text: 'Datos sincronizados correctamente.' });
     } catch (error) {
         console.error('Sincronización manual fallida:', error);
-        const detail = api.getErrorMessage(
-            error,
-            'No se pudo completar la sincronización. Las acciones pendientes permanecen guardadas.'
-        );
-        alert(detail);
+        setSyncFeedback({ type: 'error', text: api.getUserFacingSyncError(error) });
     } finally {
         setIsSyncing(false);
     }
@@ -53,21 +51,31 @@ const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, o
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Hoy</h2>
           <p className="text-gray-500">Tus visitas y pendientes del día.</p>
         </div>
+        <div className="w-full sm:w-auto">
         <button 
           onClick={handleSync}
           disabled={isSyncing || !navigator.onLine}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold rounded-lg shadow-sm transition-colors"
+          className="flex w-full items-center justify-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:bg-gray-400 sm:w-auto"
         >
             <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isSyncing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             <span>{isSyncing ? 'Actualizando...' : 'Actualizar datos'}</span>
         </button>
+          {syncFeedback && (
+            <p
+              role="status"
+              className={`mt-2 max-w-sm text-sm font-medium ${syncFeedback.type === 'success' ? 'text-green-700' : 'text-red-700'}`}
+            >
+              {syncFeedback.text}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Operative Stats */}

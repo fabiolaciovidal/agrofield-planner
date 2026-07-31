@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+  const buildId = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local';
   return {
     base: '/',
     plugins: [
@@ -68,7 +69,8 @@ export default defineConfig(({ mode }) => {
       })
     ],
     define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      '__APP_BUILD__': JSON.stringify(buildId)
     }
   }
 })

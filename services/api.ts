@@ -22,6 +22,32 @@ export const getErrorMessage = (error: unknown, fallback: string): string => {
     return fallback;
 };
 
+export const getUserFacingSyncError = (error: unknown): string => {
+    const detail = getErrorMessage(error, 'No se pudo completar la sincronización.');
+    const normalized = detail.toLowerCase();
+
+    if (normalized.includes('sin conexión') || normalized.includes('offline')) {
+        return 'No hay conexión. Tus cambios siguen guardados en este dispositivo.';
+    }
+    if (normalized.includes('row-level security') || normalized.includes('permission denied') || normalized.includes('42501')) {
+        return 'No pudimos enviar algunos datos por un problema de permisos. Permanecen guardados en este dispositivo; vuelve a iniciar sesión y reintenta.';
+    }
+    if (normalized.includes('foreign key') || normalized.includes('23503')) {
+        return 'Falta sincronizar un registro relacionado. Tus cambios siguen guardados; vuelve a intentar la sincronización.';
+    }
+
+    return 'No se pudo completar la sincronización. Tus cambios permanecen guardados en este dispositivo.';
+};
+
+export const isAuthenticationSessionError = (error: unknown): boolean => {
+    const detail = getErrorMessage(error, '').toLowerCase();
+    return detail.includes('invalid refresh token')
+        || detail.includes('refresh token not found')
+        || detail.includes('auth session missing')
+        || detail.includes('jwt expired');
+};
+
+
 export const reconcileClients = (cloudClients: Client[], actions: SyncAction[]): Client[] => {
     const merged = new Map(cloudClients.map((client) => [client.id, client]));
 
@@ -84,13 +110,11 @@ export const forceSyncAll = async (userId?: string): Promise<void> => {
     }
 
     if (syncResult.failed > 0) {
-        const details = syncResult.errors
-            .slice(0, 3)
-            .map((error) => `${error.actionType}: ${error.message}`)
-            .join(' | ');
+        console.error('SYNC: Pending actions failed.', syncResult.errors);
+        const actionTypes = [...new Set(syncResult.errors.map((error) => error.actionType))].join(', ');
         throw new Error(
             `${syncResult.failed} acción(es) no pudieron sincronizarse y siguen pendientes.` +
-            (details ? ` Detalle: ${details}` : '')
+            (actionTypes ? ` Código de soporte: ${actionTypes}.` : '')
         );
     }
 };

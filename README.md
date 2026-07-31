@@ -30,8 +30,16 @@ Para una base nueva, ejecutar `supabase_schema.sql`. Para una base existente,
 ejecutar `supabase_migration_existing.sql`. Después ejecutar
 `supabase_production_security.sql` para crear las políticas RLS.
 
+Para un proyecto existente que ya tenga las políticas instaladas, ejecutar
+`supabase_fix_seller_assignment.sql` para asegurar que clientes y visitas
+queden vinculados al vendedor autenticado. El script es idempotente y muestra
+los triggers instalados al finalizar.
+
 Probar primero en staging y generar un respaldo antes de aplicar migraciones
 sobre producción.
+
+La lista de aceptación previa a una demostración Android está en
+`docs/android_release_checklist.md`.
 
 ## Variables de Vercel
 

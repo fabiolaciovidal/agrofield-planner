@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseImportedClients, reconcileClients, reconcileVisits } from './api';
+import { getUserFacingSyncError, isAuthenticationSessionError, parseImportedClients, reconcileClients, reconcileVisits } from './api';
 import { Client, SyncAction, Visit } from '../types';
 
 const makeClient = (id: number, name = 'Cliente'): Client => ({
@@ -144,5 +144,32 @@ describe('parseImportedClients', () => {
             latitud: '-170',
             longitud: '-63',
         }], 100)).toThrow('Fila 2: latitud inválida');
+    });
+});
+
+describe('getUserFacingSyncError', () => {
+    it('protege los detalles internos de RLS', () => {
+        const message = getUserFacingSyncError(new Error('new row violates row-level security policy | 42501'));
+        expect(message).toContain('problema de permisos');
+        expect(message).not.toContain('row-level security');
+    });
+
+    it('explica que los datos offline permanecen guardados', () => {
+        expect(getUserFacingSyncError(new Error('Sin conexión a internet')))
+            .toContain('siguen guardados');
+    });
+
+    it('usa un mensaje seguro para errores desconocidos', () => {
+        expect(getUserFacingSyncError(new Error('internal detail'))).not.toContain('internal detail');
+    });
+});
+
+describe('isAuthenticationSessionError', () => {
+    it('detecta un refresh token vencido o inexistente', () => {
+        expect(isAuthenticationSessionError(new Error('Invalid Refresh Token: Refresh Token Not Found'))).toBe(true);
+    });
+
+    it('no confunde un fallo de red con una sesión inválida', () => {
+        expect(isAuthenticationSessionError(new Error('Failed to fetch'))).toBe(false);
     });
 });
