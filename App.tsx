@@ -114,6 +114,12 @@ const App: React.FC = () => {
         localStorage.setItem(SESSION_USER_KEY, JSON.stringify(authenticatedUser));
         if (savedCampaignId) setSelectedCampaignId(savedCampaignId);
       } catch (error) {
+        if (api.isAuthenticationSessionError(error)) {
+          localStorage.removeItem(SESSION_USER_KEY);
+          localStorage.removeItem(SESSION_CAMPAIGN_KEY);
+          await api.logout();
+          return;
+        }
         console.warn('No se pudo validar la sesión remota; se usará la sesión offline guardada.', error);
         try {
           restoreSavedUser();
@@ -361,6 +367,8 @@ const App: React.FC = () => {
                 onNavigateToImport={() => setCurrentView(View.ADMIN_IMPORT)}
                 onFilterClients={navigateToFilteredClients}
                 salesPlan={salesPlan}
+                sellerCode={dataScopeUserId}
+                onSyncComplete={fetchData}
                 isAdmin={isAdminUser}
             />
         );
@@ -432,6 +440,8 @@ const App: React.FC = () => {
                 onNavigateToImport={() => setCurrentView(View.ADMIN_IMPORT)}
                 onFilterClients={navigateToFilteredClients}
                 salesPlan={salesPlan}
+                sellerCode={dataScopeUserId}
+                onSyncComplete={fetchData}
                 isAdmin={isAdminUser}
             />
         );
@@ -446,6 +456,8 @@ const App: React.FC = () => {
                 onNavigateToImport={() => setCurrentView(View.ADMIN_IMPORT)}
                 onFilterClients={navigateToFilteredClients}
                 salesPlan={salesPlan}
+                sellerCode={dataScopeUserId}
+                onSyncComplete={fetchData}
                 isAdmin={isAdminUser}
             />
         );
@@ -467,7 +479,7 @@ const App: React.FC = () => {
                 </svg>
                 <span className="break-words">AgroField CRM</span>
             </h1>
-            <p className="text-xs text-gray-500 font-medium truncate">Bienvenido, {user?.name}</p>
+            <p className="truncate text-xs font-medium text-gray-500">Bienvenido, {user?.name} · versión {__APP_BUILD__}</p>
           </div>
           <div className="flex max-w-[145px] shrink-0 flex-wrap items-center justify-end gap-1.5 sm:max-w-none">
             <select
