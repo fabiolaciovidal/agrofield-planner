@@ -5,7 +5,7 @@ import * as api from '../services/api';
 import AIAssistant from './AIAssistant';
 import SignaturePad from './SignaturePad';
 import OfflineMap from './OfflineMap';
-import { getBestEffortCurrentPosition } from '../utils/geolocation';
+import { getBestEffortCurrentPosition, requireLiveVisitPosition } from '../utils/geolocation';
 
 interface VisitDetailProps {
   visit: Visit;
@@ -63,17 +63,21 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
     setMessage('Obteniendo tu ubicación...');
     setShowDemoFix(false);
 
-    getBestEffortCurrentPosition({ maxCachedAgeMs: 5 * 60 * 1000 })
-      .then(async (position) => {
+    getBestEffortCurrentPosition({ timeoutMs: 30000, allowCached: false })
+      .then(async (resolvedPosition) => {
+        const position = requireLiveVisitPosition(resolvedPosition);
         const userCoords = position.coords;
         const distance = haversineDistance(userCoords, client.coords);
 
         if (distance <= 200) { // 200m tolerance
-          const updatedVisitData = { ...visit, status: 'InProgress' as const, checkIn: { time: Date.now(), coords: userCoords } };
+          const updatedVisitData = {
+            ...visit,
+            status: 'InProgress' as const,
+            checkIn: { time: Date.now(), coords: userCoords, accuracy: position.accuracy }
+          };
           const updatedVisit = await api.updateVisit(updatedVisitData, isOnline);
           onUpdateVisit(updatedVisit);
-          let successMsg = `¡Check-in exitoso! Distancia: ${Math.round(distance)}m.`;
-          if (position.source === 'cached') successMsg += ' Usando última ubicación guardada.';
+          let successMsg = `¡Check-in exitoso! Distancia: ${Math.round(distance)} m. Precisión GPS: ${Math.round(position.accuracy)} m.`;
           if (!isOnline) successMsg += " (Guardado localmente, se sincronizará más tarde)";
           setMessage(successMsg);
         } else {
@@ -111,12 +115,31 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
   };
   
   const handleCheckOut = async () => {
-    const updatedVisitData = { ...visit, status: 'Completed' as const, checkOut: { time: Date.now() } };
-    const updatedVisit = await api.updateVisit(updatedVisitData, isOnline);
-    onUpdateVisit(updatedVisit);
-    let successMsg = 'Visita completada y finalizada.';
-    if (!isOnline) successMsg += " (Guardado localmente, se sincronizará más tarde)";
-    setMessage(successMsg);
+    setLoading(true);
+    setMessage('Obteniendo ubicación GPS para finalizar la visita...');
+    try {
+      const resolvedPosition = await getBestEffortCurrentPosition({ timeoutMs: 30000, allowCached: false });
+      const position = requireLiveVisitPosition(resolvedPosition);
+      const updatedVisitData = {
+        ...visit,
+        status: 'Completed' as const,
+        checkOut: {
+          time: Date.now(),
+          coords: position.coords,
+          accuracy: position.accuracy
+        }
+      };
+      const updatedVisit = await api.updateVisit(updatedVisitData, isOnline);
+      onUpdateVisit(updatedVisit);
+      let successMsg = `Visita finalizada. Precisión GPS de salida: ${Math.round(position.accuracy)} m.`;
+      if (!isOnline) successMsg += " (Guardado localmente, se sincronizará más tarde)";
+      setMessage(successMsg);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'No se pudo obtener la ubicación actual.';
+      setMessage(`No se pudo finalizar la visita: ${detail}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddTask = async () => {
@@ -228,7 +251,7 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
             </button>
             <button 
               onClick={handleCheckOut}
-              disabled={visit.status !== 'InProgress'}
+              disabled={loading || visit.status !== 'InProgress'}
               className="w-full flex items-center justify-center p-3 font-bold text-white bg-red-500 rounded-md hover:bg-red-600 disabled:bg-gray-400 transition-colors"
             >
               <CheckIcon /> Check-Out

@@ -218,9 +218,14 @@ const App: React.FC = () => {
 
   useEffect(() => {
       if(isOnline){
-          sync.processSyncQueue().then(() => fetchData());
+          sync.processSyncQueue(dataScopeUserId)
+            .then(() => sync.getQueueCount())
+            .then((count) => {
+              setPendingActionsCount(count);
+              return fetchData();
+            });
       }
-  }, [isOnline, fetchData]);
+  }, [isOnline, dataScopeUserId, fetchData]);
 
   const handleLogin = async (username: string, password: string) => {
     setIsLoading(true);
@@ -370,6 +375,10 @@ const App: React.FC = () => {
                 sellerCode={dataScopeUserId}
                 onSyncComplete={fetchData}
                 isAdmin={isAdminUser}
+                isOnline={isOnline}
+                pendingActions={pendingActionsCount}
+                hasSavedSession={Boolean(localStorage.getItem(SESSION_USER_KEY))}
+                campaignId={selectedCampaignId || undefined}
             />
         );
       case View.ADMIN_HOME:
@@ -443,6 +452,10 @@ const App: React.FC = () => {
                 sellerCode={dataScopeUserId}
                 onSyncComplete={fetchData}
                 isAdmin={isAdminUser}
+                isOnline={isOnline}
+                pendingActions={pendingActionsCount}
+                hasSavedSession={Boolean(localStorage.getItem(SESSION_USER_KEY))}
+                campaignId={selectedCampaignId || undefined}
             />
         );
       case View.ADMIN_IMPORT:
@@ -459,6 +472,10 @@ const App: React.FC = () => {
                 sellerCode={dataScopeUserId}
                 onSyncComplete={fetchData}
                 isAdmin={isAdminUser}
+                isOnline={isOnline}
+                pendingActions={pendingActionsCount}
+                hasSavedSession={Boolean(localStorage.getItem(SESSION_USER_KEY))}
+                campaignId={selectedCampaignId || undefined}
             />
         );
     }

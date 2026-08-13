@@ -21,7 +21,10 @@ dispositivo, versión visible de AgroField, responsable y evidencia.
 - [ ] Editar prioridad y estado comercial.
 - [ ] Registrar nota, tarea, foto y firma.
 - [ ] Ejecutar check-in y check-out con permiso de ubicación.
+- [ ] Confirmar que check-in y check-out registran coordenadas y precisión GPS en vivo.
+- [ ] Confirmar que una ubicación guardada o con precisión mayor a 100 m no autoriza el registro.
 - [ ] Confirmar que el indicador de pendientes permanece en cero.
+- [ ] Confirmar el estado **Listo para trabajar sin conexión** antes de salir.
 
 ## Flujo vendedor sin internet
 

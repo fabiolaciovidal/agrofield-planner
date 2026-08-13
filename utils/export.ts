@@ -15,7 +15,7 @@ export const exportToCSV = (filename: string, headers: string[], data: any[]) =>
     // Rows
     for (const row of data) {
         const values = headers.map(header => {
-            const val = row[header] || '';
+            const val = row[header] ?? '';
             const escaped = ('' + val).replace(/"/g, '""');
             return `"${escaped}"`;
         });
