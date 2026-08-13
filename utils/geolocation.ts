@@ -4,6 +4,7 @@ export interface StoredPosition {
     lon: number;
   };
   timestamp: number;
+  accuracy?: number;
 }
 
 export interface ResolvedPosition {
@@ -13,6 +14,7 @@ export interface ResolvedPosition {
   };
   timestamp: number;
   source: 'live' | 'cached';
+  accuracy?: number;
 }
 
 const STORAGE_KEY = 'agrofield_last_known_position';
@@ -35,9 +37,13 @@ const readStoredPosition = (): StoredPosition | null => {
   }
 };
 
-export const saveLastKnownPosition = (coords: { lat: number; lon: number }, timestamp = Date.now()) => {
+export const saveLastKnownPosition = (
+  coords: { lat: number; lon: number },
+  timestamp = Date.now(),
+  accuracy?: number
+) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ coords, timestamp }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ coords, timestamp, accuracy }));
   } catch {
     // Ignore storage failures and rely on the live position only.
   }
@@ -54,10 +60,12 @@ export const getBestEffortCurrentPosition = async (
   options?: {
     timeoutMs?: number;
     maxCachedAgeMs?: number;
+    allowCached?: boolean;
   }
 ): Promise<ResolvedPosition> => {
   const timeoutMs = options?.timeoutMs ?? 12000;
   const maxCachedAgeMs = options?.maxCachedAgeMs ?? 15 * 60 * 1000;
+  const allowCached = options?.allowCached ?? true;
 
   if (!navigator.geolocation) {
     throw new Error('Este dispositivo no soporta geolocalización.');
@@ -79,13 +87,16 @@ export const getBestEffortCurrentPosition = async (
       },
       timestamp: position.timestamp,
       source: 'live',
+      accuracy: position.coords.accuracy,
     };
-    saveLastKnownPosition(resolved.coords, resolved.timestamp);
+    saveLastKnownPosition(resolved.coords, resolved.timestamp, resolved.accuracy);
     return resolved;
   } catch (error) {
-    const cached = getCachedPosition(maxCachedAgeMs);
-    if (cached) {
-      return cached;
+    if (allowCached) {
+      const cached = getCachedPosition(maxCachedAgeMs);
+      if (cached) {
+        return cached;
+      }
     }
 
     if (error instanceof Error) {
@@ -94,4 +105,23 @@ export const getBestEffortCurrentPosition = async (
 
     throw new Error('No se pudo obtener la ubicación actual.');
   }
+};
+
+export const requireLiveVisitPosition = (
+  position: ResolvedPosition,
+  maxAccuracyMeters = 100
+): ResolvedPosition & { source: 'live'; accuracy: number } => {
+  if (position.source !== 'live') {
+    throw new Error('Se necesita una ubicación GPS actual para registrar la visita.');
+  }
+
+  if (typeof position.accuracy !== 'number' || !Number.isFinite(position.accuracy)) {
+    throw new Error('El GPS no informó la precisión. Vuelve a intentarlo al aire libre.');
+  }
+
+  if (position.accuracy > maxAccuracyMeters) {
+    throw new Error(`La señal GPS tiene una precisión de ${Math.round(position.accuracy)} m. Se requieren 100 m o menos.`);
+  }
+
+  return position as ResolvedPosition & { source: 'live'; accuracy: number };
 };

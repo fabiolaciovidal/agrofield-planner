@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getUserFacingSyncError, isAuthenticationSessionError, parseImportedClients, reconcileClients, reconcileVisits } from './api';
+import { buildVisitsReportRows, getUserFacingSyncError, isAuthenticationSessionError, parseImportedClients, reconcileClients, reconcileVisits } from './api';
 import { Client, SyncAction, Visit } from '../types';
 
 const makeClient = (id: number, name = 'Cliente'): Client => ({
@@ -171,5 +171,23 @@ describe('isAuthenticationSessionError', () => {
 
     it('no confunde un fallo de red con una sesión inválida', () => {
         expect(isAuthenticationSessionError(new Error('Failed to fetch'))).toBe(false);
+    });
+});
+
+describe('buildVisitsReportRows', () => {
+    it('incluye evidencia GPS de entrada y salida y calcula la duración', () => {
+        const visit: Visit = {
+            ...makeVisit(10, 'Visita con evidencia'),
+            checkIn: { time: 1_000_000, coords: { lat: -17.5, lon: -63.1 }, accuracy: 12 },
+            checkOut: { time: 2_800_000, coords: { lat: -17.5001, lon: -63.1001 }, accuracy: 18 },
+        };
+
+        expect(buildVisitsReportRows([visit])[0]).toMatchObject({
+            checkInLat: -17.5,
+            checkInAccuracy: 12,
+            checkOutLat: -17.5001,
+            checkOutAccuracy: 18,
+            durationMinutes: 30,
+        });
     });
 });

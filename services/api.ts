@@ -703,10 +703,42 @@ export const getAgronomicSuggestion = async (crop: string, stage: string, proble
 };
 
 // --- REPORTING ---
+export const buildVisitsReportRows = (visits: Visit[]) => visits.map((visit) => ({
+    id: visit.id,
+    clientId: visit.clientId,
+    vendedorId: visit.vendedorId || '',
+    campaignId: visit.campaignId || '',
+    date: visit.date,
+    timeSlot: visit.timeSlot,
+    status: visit.status,
+    checkInTime: visit.checkIn ? new Date(visit.checkIn.time).toISOString() : '',
+    checkInLat: visit.checkIn?.coords.lat ?? '',
+    checkInLon: visit.checkIn?.coords.lon ?? '',
+    checkInAccuracy: visit.checkIn?.accuracy ?? '',
+    checkOutTime: visit.checkOut ? new Date(visit.checkOut.time).toISOString() : '',
+    checkOutLat: visit.checkOut?.coords?.lat ?? '',
+    checkOutLon: visit.checkOut?.coords?.lon ?? '',
+    checkOutAccuracy: visit.checkOut?.accuracy ?? '',
+    durationMinutes: visit.checkIn && visit.checkOut
+        ? Math.round((visit.checkOut.time - visit.checkIn.time) / 60000)
+        : '',
+    notes: visit.notes,
+    commitments: visit.commitments,
+}));
+
 export const exportVisitsReport = async () => {
     const visits = await db.getVisits();
-    const headers = ['id', 'clientId', 'date', 'status', 'notes', 'commitments'];
-    exportToCSV(`reporte_visitas_${new Date().toISOString().split('T')[0]}.csv`, headers, visits);
+    const headers = [
+        'id', 'clientId', 'vendedorId', 'campaignId', 'date', 'timeSlot', 'status',
+        'checkInTime', 'checkInLat', 'checkInLon', 'checkInAccuracy',
+        'checkOutTime', 'checkOutLat', 'checkOutLon', 'checkOutAccuracy',
+        'durationMinutes', 'notes', 'commitments'
+    ];
+    exportToCSV(
+        `reporte_visitas_${new Date().toISOString().split('T')[0]}.csv`,
+        headers,
+        buildVisitsReportRows(visits)
+    );
 };
 
 export const exportInteractionsReport = async () => {

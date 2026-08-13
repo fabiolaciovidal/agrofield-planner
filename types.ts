@@ -39,9 +39,12 @@ export interface Visit {
   checkIn?: {
     time: number;
     coords: { lat: number; lon: number };
+    accuracy?: number;
   };
   checkOut?: {
     time: number;
+    coords?: { lat: number; lon: number };
+    accuracy?: number;
   };
   notes: string;
   photos: string[]; // URLs or base64 strings

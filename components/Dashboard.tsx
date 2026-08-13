@@ -2,6 +2,7 @@ import React from 'react';
 import { Visit, Client, ClientPriority, LeadStatus } from '../types';
 import { VisitCard } from './VisitCard';
 import * as api from '../services/api';
+import { countCachedMapTiles, evaluateOfflineReadiness, OFFLINE_LAST_SYNC_KEY } from '../utils/offlineReadiness';
 
 interface DashboardProps {
   visits: Visit[];
@@ -13,9 +14,13 @@ interface DashboardProps {
   isAdmin?: boolean;
   sellerCode?: string;
   onSyncComplete?: () => Promise<void> | void;
+  isOnline: boolean;
+  pendingActions: number;
+  hasSavedSession: boolean;
+  campaignId?: string;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, onNavigateToImport, onFilterClients, salesPlan, isAdmin = false, sellerCode, onSyncComplete }) => {
+const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, onNavigateToImport, onFilterClients, salesPlan, isAdmin = false, sellerCode, onSyncComplete, isOnline, pendingActions, hasSavedSession, campaignId }) => {
   const today = new Date().toISOString().split('T')[0];
   const todaysVisits = visits.filter(v => v.date === today);
 
@@ -33,6 +38,18 @@ const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, o
 
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [syncFeedback, setSyncFeedback] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [lastSyncAt, setLastSyncAt] = React.useState<number | null>(() => {
+    const stored = localStorage.getItem(OFFLINE_LAST_SYNC_KEY);
+    const parsed = stored ? Number(stored) : NaN;
+    return Number.isFinite(parsed) ? parsed : null;
+  });
+  const [mapTileCount, setMapTileCount] = React.useState(0);
+
+  React.useEffect(() => {
+    countCachedMapTiles().then(setMapTileCount);
+  }, []);
+
+  const offlineReadiness = evaluateOfflineReadiness({ hasSavedSession, campaignId, lastSyncAt });
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -40,6 +57,9 @@ const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, o
     try {
         await api.forceSyncAll(sellerCode);
         await onSyncComplete?.();
+        const syncedAt = Date.now();
+        localStorage.setItem(OFFLINE_LAST_SYNC_KEY, String(syncedAt));
+        setLastSyncAt(syncedAt);
         setSyncFeedback({ type: 'success', text: 'Datos sincronizados correctamente.' });
     } catch (error) {
         console.error('Sincronización manual fallida:', error);
@@ -59,7 +79,7 @@ const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, o
         <div className="w-full sm:w-auto">
         <button 
           onClick={handleSync}
-          disabled={isSyncing || !navigator.onLine}
+          disabled={isSyncing || !isOnline}
           className="flex w-full items-center justify-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:bg-gray-400 sm:w-auto"
         >
             <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isSyncing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -77,6 +97,37 @@ const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, o
           )}
         </div>
       </div>
+
+      {!isAdmin && (
+        <section
+          aria-label="Preparación para trabajo sin conexión"
+          className={`rounded-xl border p-4 shadow-sm ${offlineReadiness.ready ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50'}`}
+        >
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className={`font-bold ${offlineReadiness.ready ? 'text-green-800' : 'text-yellow-800'}`}>
+                {offlineReadiness.ready ? 'Listo para trabajar sin conexión' : 'Preparación offline incompleta'}
+              </h3>
+              <p className="text-xs text-gray-600">
+                {offlineReadiness.ready
+                  ? 'Puedes consultar y registrar información aunque pierdas la señal.'
+                  : `Falta: ${offlineReadiness.missing.join(', ')}.`}
+              </p>
+            </div>
+            <span className={`mt-2 w-fit rounded-full px-2 py-1 text-xs font-bold sm:mt-0 ${isOnline ? 'bg-white text-green-700' : 'bg-gray-700 text-white'}`}>
+              {isOnline ? 'En línea' : 'Sin conexión'}
+            </span>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+            <div className="rounded-lg bg-white/80 p-2"><span className="block font-bold text-gray-700">Cartera local</span>{clients.length} clientes</div>
+            <div className="rounded-lg bg-white/80 p-2"><span className="block font-bold text-gray-700">Agenda local</span>{visits.length} visitas</div>
+            <div className="rounded-lg bg-white/80 p-2"><span className="block font-bold text-gray-700">Pendientes</span>{pendingActions} acciones</div>
+            <div className="rounded-lg bg-white/80 p-2"><span className="block font-bold text-gray-700">Campaña</span>{campaignId || 'No seleccionada'}</div>
+            <div className="rounded-lg bg-white/80 p-2"><span className="block font-bold text-gray-700">Última sincronización</span>{lastSyncAt ? new Date(lastSyncAt).toLocaleString('es-BO') : 'Aún no realizada'}</div>
+            <div className="rounded-lg bg-white/80 p-2"><span className="block font-bold text-gray-700">Mapa offline</span>{mapTileCount > 0 ? `${mapTileCount} archivos guardados` : 'Opcional, no descargado'}</div>
+          </div>
+        </section>
+      )}
 
       {/* Operative Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
