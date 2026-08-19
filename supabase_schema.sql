@@ -17,6 +17,7 @@ CREATE TABLE clients (
     priority TEXT,
     "lastVisit" TEXT,
     crops JSONB,
+    "agriculturalProfile" JSONB DEFAULT '{"crops": []}'::jsonb,
     "vendedorId" TEXT
 );
 

@@ -4,6 +4,7 @@ import * as api from '../services/api';
 import Spinner from './Spinner';
 import OfflineMap from './OfflineMap';
 import { getBestEffortCurrentPosition } from '../utils/geolocation';
+import ClientProfileSections from './ClientProfileSections';
 
 interface ClientDetailProps {
     client: Client;
@@ -201,6 +202,8 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack, isOnline, o
                 </div>
             )}
 
+            <ClientProfileSections client={client} isOnline={isOnline} onUpdateClient={onUpdateClient} />
+
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Status Sidebar */}
@@ -238,15 +241,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack, isOnline, o
                         </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Información</h3>
-                        <div className="text-sm space-y-2">
-                            <p><span className="text-gray-500">Dirección / Referencia:</span><br/>{client.address || 'Sin dirección registrada'}</p>
-                            {client.erpCode && <p><span className="text-gray-500">Código ERP:</span><br/>{client.erpCode}</p>}
-                            <p><span className="text-gray-500">Cultivos:</span><br/>{client.crops.join(', ')}</p>
-                            <p><span className="text-gray-500">Última Visita:</span><br/>{client.lastVisit || 'Ninguna'}</p>
-                        </div>
-                    </div>
+                    {client.erpCode && <div className="rounded-xl border border-gray-100 bg-white p-4 text-sm shadow-sm"><span className="text-gray-500">Código ERP:</span><br/>{client.erpCode}</div>}
 
                     <button 
                         onClick={async () => {

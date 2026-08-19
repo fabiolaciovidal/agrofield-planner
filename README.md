@@ -47,7 +47,6 @@ Frontend:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
-- `VITE_ENABLE_SIGNATURE`
 - `VITE_ENABLE_AI_ASSISTANT`
 - `VITE_API_KEY` cuando se habilite el asistente
 

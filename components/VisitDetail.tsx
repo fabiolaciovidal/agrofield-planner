@@ -3,14 +3,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Visit, Client, Task } from '../types';
 import * as api from '../services/api';
 import AIAssistant from './AIAssistant';
-import SignaturePad from './SignaturePad';
 import OfflineMap from './OfflineMap';
 import { getBestEffortCurrentPosition, requireLiveVisitPosition } from '../utils/geolocation';
+import { buildRescheduledVisits } from '../utils/visitRescheduling';
 
 interface VisitDetailProps {
   visit: Visit;
   onBack: () => void;
   onUpdateVisit: (visit: Visit) => void;
+  onCreateVisit: (visit: Visit) => void;
   isOnline: boolean;
 }
 
@@ -24,7 +25,20 @@ const LocationIcon = () => (
 
 const DEMO_LOCATION_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true';
 
-const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, onUpdateVisit, isOnline }) => {
+const toLocalDateInput = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getTomorrowDate = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return toLocalDateInput(tomorrow);
+};
+
+const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, onUpdateVisit, onCreateVisit, isOnline }) => {
   const [visit, setVisit] = useState<Visit>(initialVisit);
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(false);
@@ -33,11 +47,19 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
   const [photos, setPhotos] = useState<string[]>(initialVisit.photos || []);
   const [showDemoFix, setShowDemoFix] = useState(false);
   const [notesDraft, setNotesDraft] = useState(initialVisit.notes || '');
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState(getTomorrowDate);
+  const [rescheduleTimeSlot, setRescheduleTimeSlot] = useState(initialVisit.timeSlot || '09:00 - 11:00');
+  const [rescheduleReason, setRescheduleReason] = useState('Cliente no disponible');
   
   useEffect(() => {
     setVisit(initialVisit);
     setPhotos(initialVisit.photos || []);
     setNotesDraft(initialVisit.notes || '');
+    setShowReschedule(false);
+    setRescheduleDate(getTomorrowDate());
+    setRescheduleTimeSlot(initialVisit.timeSlot || '09:00 - 11:00');
+    setRescheduleReason('Cliente no disponible');
     const fetchClient = async () => {
         const clients = await api.getClients(false); 
         const foundClient = clients.find(c => c.id === initialVisit.clientId);
@@ -156,19 +178,47 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
       setNewTaskDesc('');
   };
 
+  const handleReschedule = async () => {
+    if (!rescheduleDate || !rescheduleTimeSlot.trim() || !rescheduleReason.trim()) {
+      setMessage('Completa la nueva fecha, horario y motivo de reprogramación.');
+      return;
+    }
+    if (rescheduleDate < toLocalDateInput(new Date())) {
+      setMessage('La nueva fecha no puede estar en el pasado.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { cancelledVisit, newVisit } = buildRescheduledVisits(visit, {
+        date: rescheduleDate,
+        timeSlot: rescheduleTimeSlot,
+        reason: rescheduleReason,
+        currentNotes: notesDraft,
+      });
+      const createdVisit = await api.createVisit(newVisit, isOnline);
+      onCreateVisit(createdVisit);
+
+      // Crear primero evita perder la visita original si falla la creación
+      // de la nueva programación. Si el segundo paso falla, ambas siguen
+      // visibles y el caso puede corregirse sin perder el compromiso.
+      const updatedVisit = await api.updateVisit(cancelledVisit, isOnline);
+      onUpdateVisit(updatedVisit);
+      setShowReschedule(false);
+      setMessage(`Visita reprogramada para ${rescheduleDate}, ${rescheduleTimeSlot.trim()}.${isOnline ? '' : ' Cambios guardados localmente.'}`);
+    } catch (error) {
+      console.error('No se pudo reprogramar la visita:', error);
+      setMessage('No se pudo reprogramar la visita. Vuelve a intentarlo.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSaveNotes = async () => {
       const updatedVisitData = { ...visit, notes: notesDraft };
       const updatedVisit = await api.updateVisit(updatedVisitData, isOnline);
       onUpdateVisit(updatedVisit);
       setMessage(!isOnline ? 'Notas guardadas localmente. Se sincronizarán más tarde.' : 'Notas guardadas.');
-  };
-
-  const handleSaveSignature = async (signature: string | null) => {
-      if (!signature) return;
-      const updatedVisitData = { ...visit, clientSignature: signature };
-      const updatedVisit = await api.updateVisit(updatedVisitData, isOnline);
-      onUpdateVisit(updatedVisit);
-      setMessage(!isOnline ? 'Firma guardada localmente. Se sincronizará más tarde.' : 'Firma guardada.');
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -257,6 +307,43 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
               <CheckIcon /> Check-Out
             </button>
         </div>
+        {visit.status !== 'Completed' && visit.status !== 'Cancelled' && (
+          <div className="mb-4">
+            <button
+              type="button"
+              onClick={() => setShowReschedule((value) => !value)}
+              disabled={loading}
+              className="w-full rounded-md border border-amber-300 bg-amber-50 px-4 py-3 font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+            >
+              {showReschedule ? 'Cancelar reprogramación' : '+ Reprogramar visita'}
+            </button>
+            {showReschedule && (
+              <div className="mt-3 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm text-amber-800">El intento actual quedará cancelado y se creará una nueva visita planificada.</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="text-sm text-gray-700">Nueva fecha
+                    <input type="date" min={toLocalDateInput(new Date())} value={rescheduleDate} onChange={(event) => setRescheduleDate(event.target.value)} className="mt-1 block w-full rounded-md border-gray-300" />
+                  </label>
+                  <label className="text-sm text-gray-700">Nuevo horario
+                    <input value={rescheduleTimeSlot} onChange={(event) => setRescheduleTimeSlot(event.target.value)} className="mt-1 block w-full rounded-md border-gray-300" />
+                  </label>
+                </div>
+                <label className="block text-sm text-gray-700">Motivo
+                  <select value={rescheduleReason} onChange={(event) => setRescheduleReason(event.target.value)} className="mt-1 block w-full rounded-md border-gray-300">
+                    <option>Cliente no disponible</option>
+                    <option>Cliente solicitó otra fecha</option>
+                    <option>Clima o acceso al predio</option>
+                    <option>Emergencia del vendedor</option>
+                    <option>Otro motivo</option>
+                  </select>
+                </label>
+                <button type="button" onClick={handleReschedule} disabled={loading} className="w-full rounded-md bg-amber-600 px-4 py-2 font-bold text-white disabled:bg-gray-400 sm:w-auto">
+                  {loading ? 'Guardando...' : 'Confirmar reprogramación'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
          {visit.status === 'Completed' && (
             <div className="text-center text-green-700 font-semibold">
                 Visita Completada. Duración: {getDuration()}
@@ -304,13 +391,6 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
       
       {import.meta.env.VITE_ENABLE_AI_ASSISTANT === 'true' && (
         <AIAssistant isOnline={isOnline} />
-      )}
-
-      {import.meta.env.VITE_ENABLE_SIGNATURE === 'true' && (
-        <div className="bg-white p-6 rounded-lg shadow-lg space-y-4">
-            <h3 className="text-xl font-semibold">Aceptación de Compromiso</h3>
-            <SignaturePad initialValue={visit.clientSignature} onSave={handleSaveSignature} />
-        </div>
       )}
 
     </div>
