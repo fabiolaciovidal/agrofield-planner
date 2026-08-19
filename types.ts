@@ -1,6 +1,24 @@
 export type LeadStatus = 'Prospect' | 'Active' | 'Inactive' | 'Lost';
 export type ClientPriority = 'High' | 'Medium' | 'Low';
 
+export interface CropProductionRecord {
+  id: string;
+  cropType: string;
+  plantedHectares?: number;
+  ourMaterialHectares?: number;
+  competitorInfo?: string;
+  population?: number;
+  yieldValue?: number;
+  yieldUnit?: 't/ha' | 'qq/ha' | 'kg/ha';
+  plantingDate?: string;
+  harvestDate?: string;
+}
+
+export interface AgriculturalProfile {
+  totalHectares?: number;
+  crops: CropProductionRecord[];
+}
+
 export interface Client {
   id: number;
   name: string;
@@ -17,6 +35,7 @@ export interface Client {
   priority: ClientPriority;
   lastVisit?: string;
   crops: string[];
+  agriculturalProfile?: AgriculturalProfile;
   erpCode?: string;
   vendedorId?: string; // ID del vendedor asociado en Supabase
 }
@@ -50,7 +69,6 @@ export interface Visit {
   photos: string[]; // URLs or base64 strings
   tasks: Task[];
   commitments: string;
-  clientSignature?: string; // base64 string
   vendedorId?: string;
   campaignId?: string;
 }
