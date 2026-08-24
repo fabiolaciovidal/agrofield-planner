@@ -61,3 +61,9 @@ export const validateAgriculturalProfile = (profile: AgriculturalProfile): strin
 export const cropNamesFromProfile = (profile: AgriculturalProfile): string[] => (
   [...new Set(profile.crops.map((crop) => crop.cropType.trim()).filter(Boolean))]
 );
+
+export const ensureAgriculturalProfileHasCrop = (profile: AgriculturalProfile): AgriculturalProfile => (
+  profile.crops.length > 0
+    ? profile
+    : { ...profile, crops: [createCropProductionRecord()] }
+);

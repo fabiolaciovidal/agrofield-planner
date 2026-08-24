@@ -4,6 +4,7 @@ import * as api from '../services/api';
 import {
   createCropProductionRecord,
   cropNamesFromProfile,
+  ensureAgriculturalProfileHasCrop,
   getAgriculturalProfile,
   validateAgriculturalProfile,
 } from '../utils/clientAgriculture';
@@ -83,6 +84,14 @@ const ClientProfileSections: React.FC<ClientProfileSectionsProps> = ({ client, i
     }));
   };
 
+  const handleToggleAgriculture = () => {
+    const willOpen = !showAgriculture;
+    setShowAgriculture(willOpen);
+    if (willOpen) {
+      setProfile((current) => ensureAgriculturalProfileHasCrop(current));
+    }
+  };
+
   const handleSaveAgriculture = async () => {
     const errors = validateAgriculturalProfile(profile);
     if (errors.length > 0) {
@@ -151,13 +160,13 @@ const ClientProfileSections: React.FC<ClientProfileSectionsProps> = ({ client, i
         <button
           type="button"
           aria-expanded={showAgriculture}
-          onClick={() => setShowAgriculture((value) => !value)}
+          onClick={handleToggleAgriculture}
           className="flex w-full items-center justify-between gap-3 p-4 text-left sm:p-6"
         >
           <div>
             <h3 className="font-bold text-gray-800">Información productiva</h3>
             <p className="text-xs text-gray-500">
-              {profile.crops.length > 0 ? `${profile.crops.length} cultivo(s) registrado(s)` : 'Agrega superficie, cultivos y datos productivos.'}
+              {profile.crops.length > 0 ? `${profile.crops.length} cultivo(s) registrado(s)` : 'Toca aquí para completar hectáreas, cultivos y producción.'}
             </p>
           </div>
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100 text-xl font-bold text-green-700">
