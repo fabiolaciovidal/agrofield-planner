@@ -439,6 +439,7 @@ const App: React.FC = () => {
                 visit={selectedVisit}
                 onBack={() => setCurrentView(View.DASHBOARD)}
                 onUpdateVisit={handleUpdateVisit}
+                onUpdateClient={handleUpdateClient}
                 onCreateVisit={handleCreateVisit}
                 isOnline={isOnline}
             />

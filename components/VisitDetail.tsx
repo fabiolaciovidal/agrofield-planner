@@ -1,16 +1,19 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Visit, Client, Task } from '../types';
+import { AgriculturalProfile, Visit, Client, Task, VisitProductiveSurvey } from '../types';
 import * as api from '../services/api';
 import AIAssistant from './AIAssistant';
 import OfflineMap from './OfflineMap';
 import { getBestEffortCurrentPosition, requireLiveVisitPosition } from '../utils/geolocation';
 import { buildRescheduledVisits } from '../utils/visitRescheduling';
+import { cropNamesFromProfile, ensureAgriculturalProfileHasCrop, getAgriculturalProfile, validateAgriculturalProfile } from '../utils/clientAgriculture';
+import AgriculturalProfileForm from './AgriculturalProfileForm';
 
 interface VisitDetailProps {
   visit: Visit;
   onBack: () => void;
   onUpdateVisit: (visit: Visit) => void;
+  onUpdateClient: (client: Client) => void;
   onCreateVisit: (visit: Visit) => void;
   isOnline: boolean;
 }
@@ -38,7 +41,7 @@ const getTomorrowDate = () => {
   return toLocalDateInput(tomorrow);
 };
 
-const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, onUpdateVisit, onCreateVisit, isOnline }) => {
+const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, onUpdateVisit, onUpdateClient, onCreateVisit, isOnline }) => {
   const [visit, setVisit] = useState<Visit>(initialVisit);
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(false);
@@ -51,6 +54,11 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
   const [rescheduleDate, setRescheduleDate] = useState(getTomorrowDate);
   const [rescheduleTimeSlot, setRescheduleTimeSlot] = useState(initialVisit.timeSlot || '09:00 - 11:00');
   const [rescheduleReason, setRescheduleReason] = useState('Cliente no disponible');
+  const [productiveProfile, setProductiveProfile] = useState<AgriculturalProfile>(() => ensureAgriculturalProfileHasCrop(
+    getAgriculturalProfile(initialVisit.productiveSurvey)
+  ));
+  const [unchangedFromPrevious, setUnchangedFromPrevious] = useState(initialVisit.productiveSurvey?.unchangedFromPrevious || false);
+  const [surveySaved, setSurveySaved] = useState(Boolean(initialVisit.productiveSurvey));
   
   useEffect(() => {
     setVisit(initialVisit);
@@ -60,13 +68,79 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
     setRescheduleDate(getTomorrowDate());
     setRescheduleTimeSlot(initialVisit.timeSlot || '09:00 - 11:00');
     setRescheduleReason('Cliente no disponible');
+    setUnchangedFromPrevious(initialVisit.productiveSurvey?.unchangedFromPrevious || false);
+    setSurveySaved(Boolean(initialVisit.productiveSurvey));
     const fetchClient = async () => {
         const clients = await api.getClients(false); 
         const foundClient = clients.find(c => c.id === initialVisit.clientId);
         setClient(foundClient || null);
+        const surveySource = initialVisit.productiveSurvey || foundClient?.agriculturalProfile;
+        setProductiveProfile(ensureAgriculturalProfileHasCrop(
+          getAgriculturalProfile(surveySource, foundClient?.crops)
+        ));
     }
     fetchClient();
   }, [initialVisit]);
+
+  const hasPreviousProductiveData = Boolean(
+    client && (client.agriculturalProfile?.crops.length || client.crops.length)
+  );
+
+  const handleProductiveProfileChange = (profile: AgriculturalProfile) => {
+    setProductiveProfile(profile);
+    setUnchangedFromPrevious(false);
+    setSurveySaved(false);
+  };
+
+  const handleUnchangedProductiveData = (checked: boolean) => {
+    setUnchangedFromPrevious(checked);
+    setSurveySaved(false);
+    if (checked && client) {
+      setProductiveProfile(ensureAgriculturalProfileHasCrop(
+        getAgriculturalProfile(client.agriculturalProfile, client.crops)
+      ));
+    }
+  };
+
+  const handleSaveProductiveSurvey = async () => {
+    if (!client) return false;
+    const errors = validateAgriculturalProfile(productiveProfile);
+    if (errors.length > 0) {
+      setMessage(errors.join(' '));
+      return false;
+    }
+
+    setLoading(true);
+    try {
+      const survey: VisitProductiveSurvey = {
+        ...productiveProfile,
+        unchangedFromPrevious,
+        recordedAt: new Date().toISOString(),
+      };
+      const updatedVisit = await api.updateVisit({ ...visit, productiveSurvey: survey }, isOnline);
+      setVisit(updatedVisit);
+      onUpdateVisit(updatedVisit);
+
+      const updatedClient = await api.updateClient({
+        ...client,
+        crops: cropNamesFromProfile(productiveProfile),
+        agriculturalProfile: productiveProfile,
+      }, isOnline);
+      setClient(updatedClient);
+      onUpdateClient(updatedClient);
+      setSurveySaved(true);
+      setMessage(isOnline
+        ? 'Relevamiento productivo guardado y ficha del cliente actualizada.'
+        : 'Relevamiento guardado en el dispositivo. Se sincronizará al recuperar conexión.');
+      return true;
+    } catch (error) {
+      console.error('No se pudo guardar el relevamiento productivo:', error);
+      setMessage('No se pudo guardar el relevamiento productivo. Vuelve a intentarlo.');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const haversineDistance = (coords1: {lat: number, lon: number}, coords2: {lat: number, lon: number}) => {
     const R = 6371e3; // metres
@@ -98,6 +172,7 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
             checkIn: { time: Date.now(), coords: userCoords, accuracy: position.accuracy }
           };
           const updatedVisit = await api.updateVisit(updatedVisitData, isOnline);
+          setVisit(updatedVisit);
           onUpdateVisit(updatedVisit);
           let successMsg = `¡Check-in exitoso! Distancia: ${Math.round(distance)} m. Precisión GPS: ${Math.round(position.accuracy)} m.`;
           if (!isOnline) successMsg += " (Guardado localmente, se sincronizará más tarde)";
@@ -152,6 +227,7 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
         }
       };
       const updatedVisit = await api.updateVisit(updatedVisitData, isOnline);
+      setVisit(updatedVisit);
       onUpdateVisit(updatedVisit);
       let successMsg = `Visita finalizada. Precisión GPS de salida: ${Math.round(position.accuracy)} m.`;
       if (!isOnline) successMsg += " (Guardado localmente, se sincronizará más tarde)";
@@ -301,12 +377,17 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
             </button>
             <button 
               onClick={handleCheckOut}
-              disabled={loading || visit.status !== 'InProgress'}
+              disabled={loading || visit.status !== 'InProgress' || !surveySaved}
               className="w-full flex items-center justify-center p-3 font-bold text-white bg-red-500 rounded-md hover:bg-red-600 disabled:bg-gray-400 transition-colors"
             >
               <CheckIcon /> Check-Out
             </button>
         </div>
+        {visit.status === 'InProgress' && !surveySaved && (
+          <p className="mb-4 text-center text-sm font-medium text-amber-700">
+            Guarda el relevamiento productivo antes de hacer Check-Out.
+          </p>
+        )}
         {visit.status !== 'Completed' && visit.status !== 'Cancelled' && (
           <div className="mb-4">
             <button
@@ -353,6 +434,57 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
 
       <div className="bg-white p-6 rounded-lg shadow-lg space-y-4">
         <h3 className="text-xl font-semibold">Registro de Visita</h3>
+        <section className="rounded-xl border border-green-200 bg-green-50/40 p-4">
+          <div className="mb-4">
+            <h4 className="font-bold text-green-900">Relevamiento productivo</h4>
+            <p className="text-sm text-green-800">
+              Registra lo observado en esta visita. El sistema conservará el historial y actualizará el resumen del cliente.
+            </p>
+          </div>
+
+          {(visit.status === 'Completed' || visit.status === 'Cancelled') && !visit.productiveSurvey ? (
+            <p className="rounded-lg bg-white p-3 text-sm text-gray-500">Esta visita no tiene un relevamiento productivo registrado.</p>
+          ) : (
+            <>
+              <label className={`mb-4 flex items-start gap-3 rounded-lg border p-3 ${hasPreviousProductiveData ? 'border-green-200 bg-white' : 'border-gray-200 bg-gray-100'}`}>
+                <input
+                  type="checkbox"
+                  checked={unchangedFromPrevious}
+                  disabled={!hasPreviousProductiveData || visit.status === 'Completed' || visit.status === 'Cancelled'}
+                  onChange={(event) => handleUnchangedProductiveData(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                />
+                <span className="text-sm text-gray-700">
+                  <strong className="block">Sin cambios desde la visita anterior</strong>
+                  Reutiliza la última información productiva confirmada del cliente.
+                </span>
+              </label>
+              {!hasPreviousProductiveData && visit.status !== 'Completed' && visit.status !== 'Cancelled' && (
+                <p className="mb-4 text-xs text-amber-700">Es el primer relevamiento del cliente; completa los datos productivos.</p>
+              )}
+
+              <AgriculturalProfileForm
+                profile={productiveProfile}
+                onChange={handleProductiveProfileChange}
+                disabled={unchangedFromPrevious || visit.status === 'Completed' || visit.status === 'Cancelled'}
+              />
+
+              {visit.status !== 'Completed' && visit.status !== 'Cancelled' && (
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    onClick={handleSaveProductiveSurvey}
+                    disabled={loading}
+                    className="w-full rounded-lg bg-green-700 px-4 py-3 font-bold text-white disabled:bg-gray-400 sm:w-auto"
+                  >
+                    {loading ? 'Guardando...' : 'Guardar relevamiento productivo'}
+                  </button>
+                  {surveySaved && <span className="text-sm font-medium text-green-700">✓ Guardado en esta visita</span>}
+                </div>
+              )}
+            </>
+          )}
+        </section>
         <div>
           <label className="block text-sm font-medium text-gray-700">Notas</label>
           <textarea

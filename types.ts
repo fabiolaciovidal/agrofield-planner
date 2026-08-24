@@ -19,6 +19,11 @@ export interface AgriculturalProfile {
   crops: CropProductionRecord[];
 }
 
+export interface VisitProductiveSurvey extends AgriculturalProfile {
+  unchangedFromPrevious: boolean;
+  recordedAt: string;
+}
+
 export interface Client {
   id: number;
   name: string;
@@ -69,6 +74,7 @@ export interface Visit {
   photos: string[]; // URLs or base64 strings
   tasks: Task[];
   commitments: string;
+  productiveSurvey?: VisitProductiveSurvey;
   vendedorId?: string;
   campaignId?: string;
 }

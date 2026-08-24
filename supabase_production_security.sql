@@ -5,6 +5,7 @@
 ALTER TABLE app_users DROP COLUMN IF EXISTS "passwordHash";
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS "erpCode" TEXT;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS "agriculturalProfile" JSONB DEFAULT '{"crops": []}'::jsonb;
+ALTER TABLE visits ADD COLUMN IF NOT EXISTS "productiveSurvey" JSONB;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS "visitId" BIGINT;
 
 -- Vincula perfiles heredados con el UUID real de Supabase Auth cuando coincide el email.
