@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { cropNamesFromProfile, getAgriculturalProfile, validateAgriculturalProfile } from './clientAgriculture';
+import {
+  cropNamesFromProfile,
+  ensureAgriculturalProfileHasCrop,
+  getAgriculturalProfile,
+  validateAgriculturalProfile,
+} from './clientAgriculture';
 
 describe('client agriculture', () => {
   it('convierte los cultivos heredados en registros editables', () => {
@@ -28,5 +33,13 @@ describe('client agriculture', () => {
         { id: '3', cropType: 'Soya' },
       ],
     })).toEqual(['Soya', 'Maíz']);
+  });
+
+  it('muestra un cultivo vacío al abrir una ficha productiva sin cultivos', () => {
+    const profile = ensureAgriculturalProfileHasCrop({ crops: [] });
+
+    expect(profile.crops).toHaveLength(1);
+    expect(profile.crops[0].cropType).toBe('');
+    expect(profile.crops[0].yieldUnit).toBe('t/ha');
   });
 });
