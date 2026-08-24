@@ -180,6 +180,12 @@ describe('buildVisitsReportRows', () => {
             ...makeVisit(10, 'Visita con evidencia'),
             checkIn: { time: 1_000_000, coords: { lat: -17.5, lon: -63.1 }, accuracy: 12 },
             checkOut: { time: 2_800_000, coords: { lat: -17.5001, lon: -63.1001 }, accuracy: 18 },
+            productiveSurvey: {
+                recordedAt: '2026-07-18T15:00:00.000Z',
+                unchangedFromPrevious: false,
+                totalHectares: 120,
+                crops: [{ id: 'soya', cropType: 'Soya', plantedHectares: 80 }],
+            },
         };
 
         expect(buildVisitsReportRows([visit])[0]).toMatchObject({
@@ -188,6 +194,10 @@ describe('buildVisitsReportRows', () => {
             checkOutLat: -17.5001,
             checkOutAccuracy: 18,
             durationMinutes: 30,
+            surveyRecordedAt: '2026-07-18T15:00:00.000Z',
+            surveyUnchanged: false,
+            surveyTotalHectares: 120,
         });
+        expect(buildVisitsReportRows([visit])[0].surveyCrops).toContain('Soya');
     });
 });

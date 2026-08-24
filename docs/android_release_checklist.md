@@ -20,6 +20,9 @@ dispositivo, versión visible de AgroField, responsable y evidencia.
 - [ ] Programar una visita y comprobarla desde el segundo dispositivo.
 - [ ] Editar prioridad y estado comercial.
 - [ ] Registrar nota, tarea y foto.
+- [ ] Completar y guardar el relevamiento productivo de la visita.
+- [ ] Confirmar que la ficha del cliente muestra el último relevamiento como resumen.
+- [ ] En una segunda visita, probar **Sin cambios desde la visita anterior**.
 - [ ] Ejecutar check-in y check-out con permiso de ubicación.
 - [ ] Confirmar que check-in y check-out registran coordenadas y precisión GPS en vivo.
 - [ ] Confirmar que una ubicación guardada o con precisión mayor a 100 m no autoriza el registro.
@@ -33,7 +36,7 @@ dispositivo, versión visible de AgroField, responsable y evidencia.
 - [ ] Confirmar que aparece el contador amarillo de pendientes.
 - [ ] Cerrar y volver a abrir la aplicación todavía sin conexión.
 - [ ] Confirmar que cliente y visita siguen visibles.
-- [ ] Añadir nota, tarea o foto sin conexión.
+- [ ] Añadir nota, tarea, foto y relevamiento productivo sin conexión.
 - [ ] Recuperar internet y pulsar **Actualizar datos** una vez.
 - [ ] Confirmar el mensaje `Datos sincronizados correctamente`.
 - [ ] Confirmar que el contador pendiente desaparece.

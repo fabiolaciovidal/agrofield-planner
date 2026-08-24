@@ -722,6 +722,10 @@ export const buildVisitsReportRows = (visits: Visit[]) => visits.map((visit) => 
     durationMinutes: visit.checkIn && visit.checkOut
         ? Math.round((visit.checkOut.time - visit.checkIn.time) / 60000)
         : '',
+    surveyRecordedAt: visit.productiveSurvey?.recordedAt || '',
+    surveyUnchanged: visit.productiveSurvey?.unchangedFromPrevious ?? '',
+    surveyTotalHectares: visit.productiveSurvey?.totalHectares ?? '',
+    surveyCrops: visit.productiveSurvey ? JSON.stringify(visit.productiveSurvey.crops) : '',
     notes: visit.notes,
     commitments: visit.commitments,
 }));
@@ -732,7 +736,8 @@ export const exportVisitsReport = async () => {
         'id', 'clientId', 'vendedorId', 'campaignId', 'date', 'timeSlot', 'status',
         'checkInTime', 'checkInLat', 'checkInLon', 'checkInAccuracy',
         'checkOutTime', 'checkOutLat', 'checkOutLon', 'checkOutAccuracy',
-        'durationMinutes', 'notes', 'commitments'
+        'durationMinutes', 'surveyRecordedAt', 'surveyUnchanged', 'surveyTotalHectares',
+        'surveyCrops', 'notes', 'commitments'
     ];
     exportToCSV(
         `reporte_visitas_${new Date().toISOString().split('T')[0]}.csv`,

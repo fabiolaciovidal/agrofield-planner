@@ -48,7 +48,8 @@ CREATE TABLE visits (
     "vendedorId" TEXT,
     "campaignId" TEXT,
     "checkIn" JSONB,
-    "checkOut" JSONB
+    "checkOut" JSONB,
+    "productiveSurvey" JSONB
 );
 
 -- Tabla de Tareas (Tasks)
