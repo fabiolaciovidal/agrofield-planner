@@ -527,7 +527,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-grow pb-24">
+      <main className="data-entry-surface flex-grow pb-24">
         <div className="max-w-4xl mx-auto p-4 animate-fadeIn">
           {renderView()}
         </div>

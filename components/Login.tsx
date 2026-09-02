@@ -23,7 +23,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, error }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center">
+    <div className="data-entry-surface min-h-screen bg-gray-100 flex flex-col justify-center items-center">
       <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-lg">
         <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-green-700">AgroField Planner</h1>
