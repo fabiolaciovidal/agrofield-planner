@@ -8,6 +8,7 @@ import { getBestEffortCurrentPosition, requireLiveVisitPosition } from '../utils
 import { buildRescheduledVisits } from '../utils/visitRescheduling';
 import { cropNamesFromProfile, ensureAgriculturalProfileHasCrop, getAgriculturalProfile, validateAgriculturalProfile } from '../utils/clientAgriculture';
 import AgriculturalProfileForm from './AgriculturalProfileForm';
+import { formatVisitTimeSlot, getVisitTimeRange, isValidVisitTimeRange } from '../utils/visitTime';
 
 interface VisitDetailProps {
   visit: Visit;
@@ -52,7 +53,8 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
   const [notesDraft, setNotesDraft] = useState(initialVisit.notes || '');
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState(getTomorrowDate);
-  const [rescheduleTimeSlot, setRescheduleTimeSlot] = useState(initialVisit.timeSlot || '09:00 - 11:00');
+  const [rescheduleStartTime, setRescheduleStartTime] = useState(() => getVisitTimeRange(initialVisit.timeSlot).startTime);
+  const [rescheduleEndTime, setRescheduleEndTime] = useState(() => getVisitTimeRange(initialVisit.timeSlot).endTime);
   const [rescheduleReason, setRescheduleReason] = useState('Cliente no disponible');
   const [productiveProfile, setProductiveProfile] = useState<AgriculturalProfile>(() => ensureAgriculturalProfileHasCrop(
     getAgriculturalProfile(initialVisit.productiveSurvey)
@@ -66,7 +68,9 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
     setNotesDraft(initialVisit.notes || '');
     setShowReschedule(false);
     setRescheduleDate(getTomorrowDate());
-    setRescheduleTimeSlot(initialVisit.timeSlot || '09:00 - 11:00');
+    const timeRange = getVisitTimeRange(initialVisit.timeSlot);
+    setRescheduleStartTime(timeRange.startTime);
+    setRescheduleEndTime(timeRange.endTime);
     setRescheduleReason('Cliente no disponible');
     setUnchangedFromPrevious(initialVisit.productiveSurvey?.unchangedFromPrevious || false);
     setSurveySaved(Boolean(initialVisit.productiveSurvey));
@@ -255,8 +259,12 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
   };
 
   const handleReschedule = async () => {
-    if (!rescheduleDate || !rescheduleTimeSlot.trim() || !rescheduleReason.trim()) {
+    if (!rescheduleDate || !rescheduleStartTime || !rescheduleEndTime || !rescheduleReason.trim()) {
       setMessage('Completa la nueva fecha, horario y motivo de reprogramación.');
+      return;
+    }
+    if (!isValidVisitTimeRange(rescheduleStartTime, rescheduleEndTime)) {
+      setMessage('La hora de finalización debe ser posterior a la hora de inicio.');
       return;
     }
     if (rescheduleDate < toLocalDateInput(new Date())) {
@@ -264,6 +272,7 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
       return;
     }
 
+    const rescheduleTimeSlot = formatVisitTimeSlot(rescheduleStartTime, rescheduleEndTime);
     setLoading(true);
     try {
       const { cancelledVisit, newVisit } = buildRescheduledVisits(visit, {
@@ -405,9 +414,17 @@ const VisitDetail: React.FC<VisitDetailProps> = ({ visit: initialVisit, onBack, 
                   <label className="text-sm text-gray-700">Nueva fecha
                     <input type="date" min={toLocalDateInput(new Date())} value={rescheduleDate} onChange={(event) => setRescheduleDate(event.target.value)} className="mt-1 block w-full rounded-md border-gray-300" />
                   </label>
-                  <label className="text-sm text-gray-700">Nuevo horario
-                    <input value={rescheduleTimeSlot} onChange={(event) => setRescheduleTimeSlot(event.target.value)} className="mt-1 block w-full rounded-md border-gray-300" />
-                  </label>
+                  <fieldset className="min-w-0">
+                    <legend className="text-sm text-gray-700">Nuevo horario</legend>
+                    <div className="mt-1 grid grid-cols-2 gap-2">
+                      <label className="min-w-0 text-xs text-gray-600">Desde
+                        <input type="time" step="900" required value={rescheduleStartTime} onChange={(event) => setRescheduleStartTime(event.target.value)} className="mt-1 block w-full min-w-0 rounded-md border-gray-300" />
+                      </label>
+                      <label className="min-w-0 text-xs text-gray-600">Hasta
+                        <input type="time" step="900" required value={rescheduleEndTime} onChange={(event) => setRescheduleEndTime(event.target.value)} className="mt-1 block w-full min-w-0 rounded-md border-gray-300" />
+                      </label>
+                    </div>
+                  </fieldset>
                 </div>
                 <label className="block text-sm text-gray-700">Motivo
                   <select value={rescheduleReason} onChange={(event) => setRescheduleReason(event.target.value)} className="mt-1 block w-full rounded-md border-gray-300">

@@ -3,6 +3,7 @@ import { Visit, Client } from '../types';
 
 import Modal from './Modal';
 import * as api from '../services/api';
+import { DEFAULT_VISIT_TIME_RANGE, formatVisitTimeSlot, isValidVisitTimeRange } from '../utils/visitTime';
 
 interface AddVisitModalProps {
   isOpen: boolean;
@@ -19,7 +20,8 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ isOpen, onClose, clients,
   const [searchTerm, setSearchTerm] = useState('');
   const [showResults, setShowResults] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [timeSlot, setTimeSlot] = useState('09:00 - 11:00');
+  const [startTime, setStartTime] = useState(DEFAULT_VISIT_TIME_RANGE.startTime);
+  const [endTime, setEndTime] = useState(DEFAULT_VISIT_TIME_RANGE.endTime);
 
   const filteredClients = clients.filter(c => 
     c.farmName.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -33,11 +35,15 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ isOpen, onClose, clients,
         alert("Por favor selecciona un cliente de la lista.");
         return;
     }
+    if (!isValidVisitTimeRange(startTime, endTime)) {
+        alert('La hora de finalización debe ser posterior a la hora de inicio.');
+        return;
+    }
 
     const newVisit: Omit<Visit, 'id'> = {
       clientId: Number(clientId),
       date,
-      timeSlot,
+      timeSlot: formatVisitTimeSlot(startTime, endTime),
       status: 'Planned',
       notes: '',
       photos: [],
@@ -53,6 +59,8 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ isOpen, onClose, clients,
     // Reset state
     setClientId('');
     setSearchTerm('');
+    setStartTime(DEFAULT_VISIT_TIME_RANGE.startTime);
+    setEndTime(DEFAULT_VISIT_TIME_RANGE.endTime);
   };
 
   return (
@@ -118,14 +126,29 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ isOpen, onClose, clients,
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Horario</label>
-          <input
-            type="text"
-            value={timeSlot}
-            onChange={(e) => setTimeSlot(e.target.value)}
-            required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-          />
+          <span className="block text-sm font-medium text-gray-700">Horario</span>
+          <div className="mt-1 grid grid-cols-2 gap-3">
+            <label className="min-w-0 text-sm text-gray-600">Desde
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                step="900"
+                required
+                className="mt-1 block w-full min-w-0 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+              />
+            </label>
+            <label className="min-w-0 text-sm text-gray-600">Hasta
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                step="900"
+                required
+                className="mt-1 block w-full min-w-0 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+              />
+            </label>
+          </div>
         </div>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button type="button" onClick={onClose} className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 sm:w-auto">Cancelar</button>
