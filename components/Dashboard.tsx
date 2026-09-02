@@ -18,9 +18,10 @@ interface DashboardProps {
   pendingActions: number;
   hasSavedSession: boolean;
   campaignId?: string;
+  campaignName?: string;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, onNavigateToImport, onFilterClients, salesPlan, isAdmin = false, sellerCode, onSyncComplete, isOnline, pendingActions, hasSavedSession, campaignId }) => {
+const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, onNavigateToImport, onFilterClients, salesPlan, isAdmin = false, sellerCode, onSyncComplete, isOnline, pendingActions, hasSavedSession, campaignId, campaignName }) => {
   const today = new Date().toISOString().split('T')[0];
   const todaysVisits = visits.filter(v => v.date === today);
 
@@ -44,12 +45,14 @@ const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, o
     return Number.isFinite(parsed) ? parsed : null;
   });
   const [mapTileCount, setMapTileCount] = React.useState(0);
+  const [showOfflineDetails, setShowOfflineDetails] = React.useState(false);
 
   React.useEffect(() => {
     countCachedMapTiles().then(setMapTileCount);
   }, []);
 
   const offlineReadiness = evaluateOfflineReadiness({ hasSavedSession, campaignId, lastSyncAt });
+  const offlineStatusOk = offlineReadiness.ready && pendingActions === 0;
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -101,31 +104,69 @@ const Dashboard: React.FC<DashboardProps> = ({ visits, clients, onSelectVisit, o
       {!isAdmin && (
         <section
           aria-label="Preparación para trabajo sin conexión"
-          className={`rounded-xl border p-4 shadow-sm ${offlineReadiness.ready ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50'}`}
+          className={`rounded-xl border p-3 shadow-sm sm:p-4 ${offlineStatusOk ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50'}`}
         >
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className={`font-bold ${offlineReadiness.ready ? 'text-green-800' : 'text-yellow-800'}`}>
-                {offlineReadiness.ready ? 'Listo para trabajar sin conexión' : 'Preparación offline incompleta'}
-              </h3>
-              <p className="text-xs text-gray-600">
-                {offlineReadiness.ready
-                  ? 'Puedes consultar y registrar información aunque pierdas la señal.'
-                  : `Falta: ${offlineReadiness.missing.join(', ')}.`}
-              </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <span
+                aria-hidden="true"
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg font-bold ${offlineStatusOk ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}
+              >
+                {offlineStatusOk ? '✓' : '!'}
+              </span>
+              <div className="min-w-0">
+                <h3 className={`font-bold ${offlineStatusOk ? 'text-green-800' : 'text-yellow-800'}`}>
+                  {!offlineReadiness.ready
+                    ? 'Prepara la aplicación antes de salir'
+                    : pendingActions > 0
+                      ? 'Hay información pendiente de enviar'
+                      : 'Todo listo para trabajar sin conexión'}
+                </h3>
+                <p className="mt-0.5 text-sm text-gray-700">
+                  {offlineReadiness.ready
+                    ? `${clients.length} clientes · ${visits.length} visitas · ${pendingActions === 0 ? 'Sin pendientes' : `${pendingActions} pendiente${pendingActions === 1 ? '' : 's'}`}`
+                    : `Falta: ${offlineReadiness.missing.join(', ')}.`}
+                </p>
+                {lastSyncAt && (
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    Última actualización: {new Date(lastSyncAt).toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })}
+                  </p>
+                )}
+              </div>
             </div>
-            <span className={`mt-2 w-fit rounded-full px-2 py-1 text-xs font-bold sm:mt-0 ${isOnline ? 'bg-white text-green-700' : 'bg-gray-700 text-white'}`}>
-              {isOnline ? 'En línea' : 'Sin conexión'}
-            </span>
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+              {!offlineStatusOk && (
+                <button
+                  type="button"
+                  onClick={handleSync}
+                  disabled={isSyncing || !isOnline}
+                  className="min-h-[44px] rounded-lg bg-yellow-600 px-4 py-2 text-sm font-bold text-white hover:bg-yellow-700 disabled:bg-gray-400"
+                >
+                  {isSyncing ? 'Sincronizando...' : 'Sincronizar ahora'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowOfflineDetails((visible) => !visible)}
+                aria-expanded={showOfflineDetails}
+                aria-controls="offline-readiness-details"
+                className={`min-h-[44px] rounded-lg px-3 py-2 text-sm font-bold ${offlineStatusOk ? 'text-green-700 hover:bg-green-100' : 'text-yellow-800 hover:bg-yellow-100'}`}
+              >
+                {showOfflineDetails ? 'Ocultar detalles' : 'Ver detalles'}
+              </button>
+            </div>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-            <div className="rounded-lg bg-white/80 p-2"><span className="block font-bold text-gray-700">Cartera local</span>{clients.length} clientes</div>
-            <div className="rounded-lg bg-white/80 p-2"><span className="block font-bold text-gray-700">Agenda local</span>{visits.length} visitas</div>
-            <div className="rounded-lg bg-white/80 p-2"><span className="block font-bold text-gray-700">Pendientes</span>{pendingActions} acciones</div>
-            <div className="rounded-lg bg-white/80 p-2"><span className="block font-bold text-gray-700">Campaña</span>{campaignId || 'No seleccionada'}</div>
-            <div className="rounded-lg bg-white/80 p-2"><span className="block font-bold text-gray-700">Última sincronización</span>{lastSyncAt ? new Date(lastSyncAt).toLocaleString('es-BO') : 'Aún no realizada'}</div>
-            <div className="rounded-lg bg-white/80 p-2"><span className="block font-bold text-gray-700">Mapa offline</span>{mapTileCount > 0 ? `${mapTileCount} archivos guardados` : 'Opcional, no descargado'}</div>
-          </div>
+
+          {showOfflineDetails && (
+            <div id="offline-readiness-details" className="mt-3 grid grid-cols-1 gap-2 border-t border-black/5 pt-3 text-sm sm:grid-cols-3">
+              <div className="rounded-lg bg-white/80 p-3"><span className="block text-xs font-bold text-gray-500">Cartera disponible</span>{clients.length} clientes</div>
+              <div className="rounded-lg bg-white/80 p-3"><span className="block text-xs font-bold text-gray-500">Agenda disponible</span>{visits.length} visitas</div>
+              <div className="rounded-lg bg-white/80 p-3"><span className="block text-xs font-bold text-gray-500">Por enviar a la nube</span>{pendingActions === 0 ? 'Sin pendientes' : `${pendingActions} acción${pendingActions === 1 ? '' : 'es'}`}</div>
+              <div className="rounded-lg bg-white/80 p-3"><span className="block text-xs font-bold text-gray-500">Campaña</span>{campaignName || campaignId || 'No seleccionada'}</div>
+              <div className="rounded-lg bg-white/80 p-3"><span className="block text-xs font-bold text-gray-500">Última sincronización</span>{lastSyncAt ? new Date(lastSyncAt).toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' }) : 'Aún no realizada'}</div>
+              <div className="rounded-lg bg-white/80 p-3"><span className="block text-xs font-bold text-gray-500">Mapa offline</span>{mapTileCount > 0 ? 'Disponible sin conexión' : 'No descargado (opcional)'}</div>
+            </div>
+          )}
         </section>
       )}
 

@@ -379,6 +379,7 @@ const App: React.FC = () => {
                 pendingActions={pendingActionsCount}
                 hasSavedSession={Boolean(localStorage.getItem(SESSION_USER_KEY))}
                 campaignId={selectedCampaignId || undefined}
+                campaignName={campaigns.find((campaign) => campaign.id === selectedCampaignId)?.name}
             />
         );
       case View.ADMIN_HOME:
@@ -458,6 +459,7 @@ const App: React.FC = () => {
                 pendingActions={pendingActionsCount}
                 hasSavedSession={Boolean(localStorage.getItem(SESSION_USER_KEY))}
                 campaignId={selectedCampaignId || undefined}
+                campaignName={campaigns.find((campaign) => campaign.id === selectedCampaignId)?.name}
             />
         );
       case View.ADMIN_IMPORT:
@@ -478,6 +480,7 @@ const App: React.FC = () => {
                 pendingActions={pendingActionsCount}
                 hasSavedSession={Boolean(localStorage.getItem(SESSION_USER_KEY))}
                 campaignId={selectedCampaignId || undefined}
+                campaignName={campaigns.find((campaign) => campaign.id === selectedCampaignId)?.name}
             />
         );
     }
