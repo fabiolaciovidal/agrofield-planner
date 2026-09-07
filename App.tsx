@@ -15,6 +15,7 @@ import AdminCommercial from './components/AdminCommercial';
 import AdminUsers from './components/AdminUsers';
 import AdminHome from './components/AdminHome';
 import { getAuthorizedView } from './viewAuthorization';
+import { readOfflineSessionUser } from './utils/offlineSession';
 
 const SESSION_USER_KEY = 'agrofield_session_user';
 const SESSION_CAMPAIGN_KEY = 'agrofield_selected_campaign';
@@ -59,8 +60,8 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(View.DASHBOARD);
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => readOfflineSessionUser(localStorage, SESSION_USER_KEY));
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(readOfflineSessionUser(localStorage, SESSION_USER_KEY)));
   const [visits, setVisits] = useState<Visit[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -68,7 +69,7 @@ const App: React.FC = () => {
   const [pendingActionsCount, setPendingActionsCount] = useState(0);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [allSalesPlans, setAllSalesPlans] = useState<SalesPlan[]>([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>(() => localStorage.getItem(SESSION_CAMPAIGN_KEY) || '');
   const [salesPlan, setSalesPlan] = useState<{ target: number, current: number } | undefined>(undefined);
   const [authError, setAuthError] = useState('');
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -83,20 +84,21 @@ const App: React.FC = () => {
     let cancelled = false;
 
     const restoreAuthentication = async () => {
-      const savedUser = localStorage.getItem(SESSION_USER_KEY);
+      const savedUser = readOfflineSessionUser(localStorage, SESSION_USER_KEY);
       const savedCampaignId = localStorage.getItem(SESSION_CAMPAIGN_KEY);
 
       const restoreSavedUser = () => {
         if (!savedUser || cancelled) return;
-        const parsedUser = JSON.parse(savedUser) as User;
-        setUser(parsedUser);
+        setUser(savedUser);
         setIsAuthenticated(true);
         if (savedCampaignId) setSelectedCampaignId(savedCampaignId);
       };
 
       try {
+        // Desbloquear primero con la activación local. La validación remota se
+        // realiza después y no deja al vendedor esperando cuando la señal es mala.
+        restoreSavedUser();
         if (!navigator.onLine) {
-          restoreSavedUser();
           return;
         }
 
@@ -106,6 +108,9 @@ const App: React.FC = () => {
         if (!authenticatedUser) {
           localStorage.removeItem(SESSION_USER_KEY);
           localStorage.removeItem(SESSION_CAMPAIGN_KEY);
+          setUser(null);
+          setIsAuthenticated(false);
+          setSelectedCampaignId('');
           return;
         }
 
@@ -118,6 +123,11 @@ const App: React.FC = () => {
           localStorage.removeItem(SESSION_USER_KEY);
           localStorage.removeItem(SESSION_CAMPAIGN_KEY);
           await api.logout();
+          if (!cancelled) {
+            setUser(null);
+            setIsAuthenticated(false);
+            setSelectedCampaignId('');
+          }
           return;
         }
         console.warn('No se pudo validar la sesión remota; se usará la sesión offline guardada.', error);
@@ -289,6 +299,11 @@ const App: React.FC = () => {
 
 
   const handleLogout = async () => {
+      const confirmed = window.confirm(
+        'Al cerrar sesión se desactivará el acceso sin conexión en este teléfono. Para volver a activarlo necesitarás internet. ¿Deseas continuar?'
+      );
+      if (!confirmed) return;
+
       await api.logout();
       localStorage.removeItem(SESSION_USER_KEY);
       localStorage.removeItem(SESSION_CAMPAIGN_KEY);
@@ -487,7 +502,7 @@ const App: React.FC = () => {
   };
 
   if (!isAuthenticated) {
-      return <Login onLogin={handleLogin} error={authError} />
+      return <Login onLogin={handleLogin} error={authError} isOnline={isOnline} />
   }
 
   return (

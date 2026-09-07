@@ -4,9 +4,10 @@ import React, { useEffect, useState } from 'react';
 interface LoginProps {
   onLogin: (username: string, password: string) => void;
   error?: string;
+  isOnline: boolean;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, error }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, error, isOnline }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,6 +31,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, error }) => {
             <p className="text-gray-500">Inicia sesión para continuar</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-6">
+          {!isOnline && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800" role="status">
+              <strong className="block">Este teléfono todavía no tiene una sesión offline disponible.</strong>
+              Conéctalo a internet una sola vez e inicia sesión para activar el acceso sin conexión.
+            </div>
+          )}
           {error && (
             <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
