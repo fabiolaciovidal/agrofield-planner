@@ -3,6 +3,7 @@ import { View } from './types';
 const ADMIN_ONLY_VIEWS = new Set<View>([
   View.ADMIN_HOME,
   View.ADMIN_COMMERCIAL,
+  View.ADMIN_VISIT_TRACKING,
   View.ADMIN_USERS,
   View.ADMIN_IMPORT,
 ]);

@@ -56,7 +56,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView, isCommercia
           <NavItem
             label="Admin"
             icon={<CogIcon className="h-6 w-6 mb-1"/>}
-            isActive={[View.ADMIN_HOME, View.ADMIN_COMMERCIAL, View.ADMIN_USERS, View.ADMIN_IMPORT].includes(currentView)}
+            isActive={[View.ADMIN_HOME, View.ADMIN_COMMERCIAL, View.ADMIN_VISIT_TRACKING, View.ADMIN_USERS, View.ADMIN_IMPORT].includes(currentView)}
             onClick={() => setView(View.ADMIN_HOME)}
           />
         )}

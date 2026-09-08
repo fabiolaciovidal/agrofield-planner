@@ -6,6 +6,7 @@ describe('getAuthorizedView', () => {
   it.each([
     View.ADMIN_HOME,
     View.ADMIN_COMMERCIAL,
+    View.ADMIN_VISIT_TRACKING,
     View.ADMIN_USERS,
     View.ADMIN_IMPORT,
   ])('redirects a non-admin away from %s', (view) => {

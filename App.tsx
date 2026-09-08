@@ -14,6 +14,7 @@ import AdminImport from './components/AdminImport';
 import AdminCommercial from './components/AdminCommercial';
 import AdminUsers from './components/AdminUsers';
 import AdminHome from './components/AdminHome';
+import AdminVisitTracking from './components/AdminVisitTracking';
 import { getAuthorizedView } from './viewAuthorization';
 import { readOfflineSessionUser } from './utils/offlineSession';
 
@@ -59,6 +60,7 @@ const OnlineStatusIcon: React.FC<{ isOnline: boolean; pendingActions: number }> 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(View.DASHBOARD);
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+  const [visitReturnView, setVisitReturnView] = useState<View>(View.DASHBOARD);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [user, setUser] = useState<User | null>(() => readOfflineSessionUser(localStorage, SESSION_USER_KEY));
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(readOfflineSessionUser(localStorage, SESSION_USER_KEY)));
@@ -341,8 +343,9 @@ const App: React.FC = () => {
 
   const navigateToVisit = useCallback((visit: Visit) => {
     setSelectedVisit(visit);
+    setVisitReturnView(currentView);
     setCurrentView(View.VISIT_DETAIL);
-  }, []);
+  }, [currentView]);
 
   const navigateToClient = useCallback((client: Client) => {
     setSelectedClient(client);
@@ -411,6 +414,20 @@ const App: React.FC = () => {
             onSelectCampaign={setSelectedCampaignId}
           />
         );
+      case View.ADMIN_VISIT_TRACKING:
+        return (
+          <AdminVisitTracking
+            visits={visits}
+            clients={clients}
+            campaigns={campaigns}
+            selectedCampaignId={selectedCampaignId}
+            onSelectCampaign={(campaignId) => {
+              setSelectedCampaignId(campaignId);
+              localStorage.setItem(SESSION_CAMPAIGN_KEY, campaignId);
+            }}
+            onSelectVisit={navigateToVisit}
+          />
+        );
       case View.ADMIN_USERS:
         return <AdminUsers />;
       case View.CLIENTS:
@@ -453,7 +470,7 @@ const App: React.FC = () => {
         return selectedVisit ? (
             <VisitDetail
                 visit={selectedVisit}
-                onBack={() => setCurrentView(View.DASHBOARD)}
+                onBack={() => setCurrentView(visitReturnView)}
                 onUpdateVisit={handleUpdateVisit}
                 onUpdateClient={handleUpdateClient}
                 onCreateVisit={handleCreateVisit}

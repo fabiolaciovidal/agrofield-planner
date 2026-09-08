@@ -22,6 +22,11 @@ const AdminHome: React.FC<AdminHomeProps> = ({ setView }) => {
       description: 'Ver cumplimiento por vendedor y campaña.',
       action: () => setView(View.ADMIN_COMMERCIAL),
     },
+    {
+      title: 'Seguimiento de visitas',
+      description: 'Revisar ejecución, resultados y cumplimiento de cada vendedor.',
+      action: () => setView(View.ADMIN_VISIT_TRACKING),
+    },
   ];
 
   return (
@@ -31,7 +36,7 @@ const AdminHome: React.FC<AdminHomeProps> = ({ setView }) => {
         <p className="text-sm text-gray-500">Opciones internas para preparar y revisar la operación.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         {items.map((item) => (
           <button
             key={item.title}
