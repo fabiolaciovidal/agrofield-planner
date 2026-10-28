@@ -4,6 +4,29 @@ Esta lista define el mínimo técnico que debe aprobarse antes de congelar la
 versión usada en una demostración. Cada ejecución debe registrar fecha,
 dispositivo, versión visible de AgroField, responsable y evidencia.
 
+## Generar la aplicación instalable
+
+El proyecto Android vive en `android/` y utiliza el identificador
+`bo.com.agrocentro.agrofield`. La versión web y la versión Android comparten la
+misma interfaz, pero la compilación Android no registra el service worker de la
+PWA.
+
+1. Crear o actualizar `.env.local` con las variables públicas de Supabase.
+2. Ejecutar `npm run android:sync` después de cada cambio de interfaz.
+3. Ejecutar `npm run android:apk:debug` para generar el APK de pruebas.
+4. El archivo resultante queda en
+   `android/app/build/outputs/apk/debug/app-debug.apk`.
+5. Para abrir y ejecutar el proyecto en Android Studio usar
+   `npm run android:open`.
+
+El flujo **Android APK de pruebas** de GitHub Actions también genera el APK y
+lo conserva como artefacto durante 14 días. Requiere configurar en GitHub los
+secretos `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
+
+La versión `debug` es solamente para pruebas internas. Antes de distribuir la
+aplicación se debe crear y custodiar una clave de firma, incrementar
+`versionCode` y `versionName`, y generar un Android App Bundle de publicación.
+
 ## Condiciones de prueba
 
 - [ ] Android principal con Chrome actualizado.

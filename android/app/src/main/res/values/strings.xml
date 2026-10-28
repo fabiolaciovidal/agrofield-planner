@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AgroField CRM</string>
+    <string name="title_activity_main">AgroField CRM</string>
+    <string name="package_name">bo.com.agrocentro.agrofield</string>
+    <string name="custom_url_scheme">bo.com.agrocentro.agrofield</string>
+</resources>

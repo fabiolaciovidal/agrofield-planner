@@ -24,6 +24,18 @@ Antes de publicar:
     npm test
     npm run build
 
+## Android
+
+AgroField también puede compilarse como aplicación Android con Capacitor. El
+proyecto nativo usa el identificador `bo.com.agrocentro.agrofield`.
+
+    npm run android:sync
+    npm run android:apk:debug
+
+El APK interno queda en
+`android/app/build/outputs/apk/debug/app-debug.apk`. Consultar
+`docs/android_release_checklist.md` antes de distribuirlo.
+
 ## Supabase
 
 Para una base nueva, ejecutar `supabase_schema.sql`. Para una base existente,

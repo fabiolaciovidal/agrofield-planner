@@ -6,11 +6,16 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   const buildId = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local';
+  const isNativeBuild = mode === 'native';
   return {
     base: '/',
     plugins: [
       react(),
       VitePWA({
+        // Capacitor serves the bundle from the device. A service worker is useful
+        // for the web PWA, but unnecessary inside the Android WebView and can
+        // interfere with native plugin injection.
+        disable: isNativeBuild,
         registerType: 'autoUpdate',
         includeAssets: ['vite.svg', 'icon-192.svg', 'icon-512.svg', 'icon-192.png', 'icon-512.png'],
         workbox: {
